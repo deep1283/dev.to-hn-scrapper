@@ -12,8 +12,8 @@ type CheckoutResponse = {
 }
 
 const PRODUCT_IDS: Record<PlanId, string | undefined> = {
-  starter_9: process.env.DODO_PLUS_PRODUCT_ID ?? process.env.DODO_PRODUCT_ID_PLUS,
-  growth_15: process.env.DODO_PRO_PRODUCT_ID ?? process.env.DODO_PRODUCT_ID_PRO,
+  starter_9: process.env.DODO_PRODUCT_ID_PLUS,
+  growth_15: process.env.DODO_PRODUCT_ID_PRO,
 }
 
 function getDodoConfig() {

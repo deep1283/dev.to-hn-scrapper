@@ -66,7 +66,7 @@ let fallbackReserveCalls = 0
 function getServiceEnv() {
   const supabaseUrl = process.env.SUPABASE_URL
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-  const webhookSecret = process.env.DODO_WEBHOOK_SECRET ?? process.env.DODO_PAYMENTS_WEBHOOK_SECRET
+  const webhookSecret = process.env.DODO_PAYMENTS_WEBHOOK_SECRET
 
   if (!supabaseUrl || !serviceRoleKey || !webhookSecret) {
     throw new AppError(500, "Webhook is not configured.")
