@@ -33,12 +33,6 @@ export function Hero() {
             >
               Start tracking for free <ArrowRight className="h-4 w-4" />
             </Link>
-            <Link
-              href="/dashboard"
-              className="inline-flex items-center justify-center rounded-full border border-border px-7 py-3.5 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
-            >
-              See live dashboard
-            </Link>
           </div>
 
         </div>

@@ -2,6 +2,14 @@ import { ArrowRight } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 
+function XLogo({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className={className} fill="currentColor">
+      <path d="M14.1 10.2 21.8 1h-1.8l-6.7 8-5.3-8H2l8 12-8 9.5h1.8l7-8.4 5.6 8.4H22z" />
+    </svg>
+  )
+}
+
 export function CTAFooter() {
   return (
     <>
@@ -70,16 +78,32 @@ export function CTAFooter() {
               Pricing
             </Link>
             <Link
-              href="#"
+              href="/privacy"
               className="text-sm text-muted-foreground transition-colors hover:text-foreground"
             >
               Privacy
             </Link>
             <Link
-              href="#"
+              href="/terms"
               className="text-sm text-muted-foreground transition-colors hover:text-foreground"
             >
               Terms
+            </Link>
+            <Link
+              href="/contact"
+              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Contact
+            </Link>
+            <Link
+              href="https://x.com/deepmishra1283"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+              aria-label="Follow Signalze updates on X"
+            >
+              <XLogo className="h-3.5 w-3.5" />
+              Follow on X for updates
             </Link>
           </div>
           <p className="text-xs text-muted-foreground">

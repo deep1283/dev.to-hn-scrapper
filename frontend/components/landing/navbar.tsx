@@ -6,10 +6,9 @@ import Image from "next/image"
 import Link from "next/link"
 
 const navLinks = [
-  { href: "#features", label: "Features" },
-  { href: "#how-it-works", label: "How it works" },
-  { href: "#use-cases", label: "Use cases" },
   { href: "/pricing", label: "Pricing" },
+  { href: "/contact", label: "Contact" },
+  { href: "#features", label: "Features" },
 ]
 
 export function Navbar() {
@@ -42,21 +41,6 @@ export function Navbar() {
           ))}
         </div>
 
-        <div className="hidden items-center gap-3 md:flex">
-          <Link
-            href="/login"
-            className="text-sm font-medium text-foreground transition-colors hover:text-primary"
-          >
-            Log in
-          </Link>
-          <Link
-            href="/pricing"
-            className="rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-accent-foreground transition-all hover:brightness-95 active:scale-[0.98]"
-          >
-            Start now
-          </Link>
-        </div>
-
         <button
           className="md:hidden text-foreground"
           onClick={() => setMobileOpen(!mobileOpen)}
@@ -79,16 +63,6 @@ export function Navbar() {
                 {link.label}
               </Link>
             ))}
-            <hr className="border-border/40" />
-            <Link href="/login" className="text-sm font-medium text-foreground">
-              Log in
-            </Link>
-            <Link
-              href="/pricing"
-              className="inline-block rounded-full bg-accent px-5 py-2.5 text-center text-sm font-semibold text-accent-foreground"
-            >
-              Start now
-            </Link>
           </div>
         </div>
       )}
