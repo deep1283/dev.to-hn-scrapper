@@ -65,12 +65,7 @@ export function CTAFooter() {
             >
               Features
             </Link>
-            <Link
-              href="#how-it-works"
-              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-            >
-              How it works
-            </Link>
+
             <Link
               href="/pricing"
               className="text-sm text-muted-foreground transition-colors hover:text-foreground"
