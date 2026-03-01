@@ -106,6 +106,25 @@
   text-decoration-thickness: 1.5px;
 }
 
+/* Sketch image blending helpers */
+.image-blend-clean {
+  mix-blend-mode: multiply;
+  filter: brightness(1.03) contrast(1.01);
+}
+
+.image-blend-darken {
+  mix-blend-mode: darken;
+}
+
+.image-canvas-lift {
+  filter: brightness(1.045) contrast(0.99);
+}
+
+.image-edge-fade {
+  -webkit-mask-image: radial-gradient(ellipse 92% 92% at center, #000 72%, transparent 100%);
+  mask-image: radial-gradient(ellipse 92% 92% at center, #000 72%, transparent 100%);
+}
+
 
 
 @keyframes orbit-spin {

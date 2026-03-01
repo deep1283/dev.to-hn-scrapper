@@ -1,4 +1,5 @@
 import { Bell, BarChart3, Zap, Globe, Shield, Smartphone } from "lucide-react"
+import { Reveal, Stagger, StaggerItem } from "@/components/landing/reveal"
 
 const features = [
   {
@@ -49,33 +50,34 @@ export function Features() {
   return (
     <section id="features" className="px-6 py-20 md:py-32">
       <div className="mx-auto max-w-6xl">
-        <p className="text-center font-handwriting text-lg text-primary">
-          Features
-        </p>
-        <h2 className="mx-auto mt-3 max-w-lg text-center font-serif text-4xl leading-tight text-foreground md:text-5xl text-balance">
-          Simple, yet with all the tools you need
-        </h2>
+        <Reveal>
+          <p className="text-center font-handwriting text-lg text-primary">
+            Features
+          </p>
+          <h2 className="mx-auto mt-3 max-w-lg text-center font-serif text-4xl leading-tight text-foreground md:text-5xl text-balance">
+            Simple, yet with all the tools you need
+          </h2>
+        </Reveal>
 
-        <div className="mt-16 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <Stagger className="mt-16 grid gap-5 sm:grid-cols-2 lg:grid-cols-3" delayChildren={0.08}>
           {features.map((feature) => (
-            <div
-              key={feature.title}
-              className="group rounded-2xl bg-card p-6 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg"
-            >
-              <div
-                className={`flex h-11 w-11 items-center justify-center rounded-xl ${feature.color}`}
-              >
-                <feature.icon className="h-5 w-5" />
+            <StaggerItem key={feature.title}>
+              <div className="group rounded-2xl bg-card p-6 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg">
+                <div
+                  className={`flex h-11 w-11 items-center justify-center rounded-xl ${feature.color}`}
+                >
+                  <feature.icon className="h-5 w-5" />
+                </div>
+                <h3 className="mt-4 text-lg font-semibold text-card-foreground">
+                  {feature.title}
+                </h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                  {feature.description}
+                </p>
               </div>
-              <h3 className="mt-4 text-lg font-semibold text-card-foreground">
-                {feature.title}
-              </h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                {feature.description}
-              </p>
-            </div>
+            </StaggerItem>
           ))}
-        </div>
+        </Stagger>
       </div>
     </section>
   )

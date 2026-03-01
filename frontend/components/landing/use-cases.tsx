@@ -1,4 +1,5 @@
 import Image from "next/image"
+import { Reveal } from "@/components/landing/reveal"
 
 const useCases = [
   {
@@ -37,17 +38,20 @@ export function UseCases() {
   return (
     <section id="use-cases" className="px-6 py-20 md:py-32">
       <div className="mx-auto max-w-6xl">
-        <p className="text-center font-handwriting text-lg text-primary">
-          Use cases
-        </p>
-        <h2 className="mx-auto mt-3 max-w-lg text-center font-serif text-4xl leading-tight text-foreground md:text-5xl text-balance">
-          Tracking that works for your world
-        </h2>
+        <Reveal>
+          <p className="text-center font-handwriting text-lg text-primary">
+            Use cases
+          </p>
+          <h2 className="mx-auto mt-3 max-w-lg text-center font-serif text-4xl leading-tight text-foreground md:text-5xl text-balance">
+            Tracking that works for your world
+          </h2>
+        </Reveal>
 
         <div className="mt-20 flex flex-col gap-24">
-          {useCases.map((useCase) => (
-            <div
+          {useCases.map((useCase, index) => (
+            <Reveal
               key={useCase.title}
+              delay={index * 0.06}
               className="grid items-center gap-10 md:grid-cols-2"
             >
               <div
@@ -75,10 +79,12 @@ export function UseCases() {
                   alt={useCase.imageAlt}
                   width={520}
                   height={400}
-                  className="mx-auto w-full max-w-[420px]"
+                  className={`mx-auto w-full max-w-[420px] image-blend-clean ${
+                    useCase.softenCanvas ? "image-canvas-lift image-edge-fade" : ""
+                  }`}
                 />
               </div>
-            </div>
+            </Reveal>
           ))}
         </div>
       </div>

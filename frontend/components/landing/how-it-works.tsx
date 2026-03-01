@@ -1,26 +1,27 @@
 import Image from "next/image"
 import { ArrowRight } from "lucide-react"
 import Link from "next/link"
+import { Reveal } from "@/components/landing/reveal"
 
 export function HowItWorks() {
   return (
     <section id="how-it-works" className="px-6 py-20 md:py-32">
       <div className="mx-auto grid max-w-6xl items-center gap-12 md:grid-cols-2">
-        <div className="order-2 md:order-1">
+        <Reveal className="order-2 md:order-1" y={24}>
           <div className="relative mx-auto flex justify-center">
             <Image
               src="/images/sketch_service_mentions.png"
               alt="Signalze app sketch showing mentions feed and notification settings"
               width={380}
               height={520}
-              className="h-auto w-full max-w-[280px] sm:max-w-[340px]"
+              className="image-blend-clean h-auto w-full max-w-[280px] sm:max-w-[340px]"
               style={{ transform: "rotate(2deg)" }}
             />
           </div>
-        </div>
+        </Reveal>
 
         {/* Text */}
-        <div className="order-1 flex flex-col gap-6 md:order-2">
+        <Reveal className="order-1 flex flex-col gap-6 md:order-2" delay={0.08}>
           <p className="font-handwriting text-lg text-primary">Quick setup</p>
           <h2 className="font-serif text-4xl leading-tight text-foreground md:text-5xl text-balance">
             Set up tracking in seconds
@@ -38,7 +39,7 @@ export function HowItWorks() {
           <p className="font-handwriting text-base text-muted-foreground">
             ↓ it&apos;s that easy — 2-day free trial on any plan
           </p>
-        </div>
+        </Reveal>
       </div>
     </section>
   )

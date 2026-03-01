@@ -1,6 +1,7 @@
 import { ArrowRight } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
+import { Reveal } from "@/components/landing/reveal"
 
 function XLogo({ className = "h-4 w-4" }: { className?: string }) {
   return (
@@ -15,7 +16,7 @@ export function CTAFooter() {
     <>
       {/* CTA Section */}
       <section className="px-6 py-20 md:py-32">
-        <div className="mx-auto max-w-6xl">
+        <Reveal className="mx-auto max-w-6xl">
           <div className="relative overflow-hidden rounded-3xl bg-card border border-border/60 px-8 py-16 text-center shadow-sm md:px-16">
             {/* Decorative accent */}
             <div className="pointer-events-none absolute -left-20 -top-20 h-40 w-40 rounded-full bg-accent/20 blur-3xl" />
@@ -38,12 +39,12 @@ export function CTAFooter() {
               Start 2-day trial <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
-        </div>
+        </Reveal>
       </section>
 
       {/* Footer */}
       <footer className="border-t border-border/40 px-6 py-10">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 md:flex-row">
+        <Reveal className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 md:flex-row">
           <Link
             href="/"
             className="inline-flex items-center gap-3"
@@ -104,7 +105,7 @@ export function CTAFooter() {
           <p className="text-xs text-muted-foreground">
             &copy; {new Date().getFullYear()} Signalze. All rights reserved.
           </p>
-        </div>
+        </Reveal>
       </footer>
     </>
   )
