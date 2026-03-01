@@ -43,7 +43,7 @@ export function Hero() {
                 width={380}
                 height={520}
                 priority
-                className="image-blend-darken h-auto w-full"
+                className="h-auto w-full"
                 style={{ transform: "rotate(-2deg)" }}
               />
             </div>

@@ -75,9 +75,7 @@ export function UseCases() {
                   alt={useCase.imageAlt}
                   width={520}
                   height={400}
-                  className={`mx-auto w-full max-w-[420px] mix-blend-multiply ${
-                    useCase.softenCanvas ? "image-blend-clean image-edge-fade" : ""
-                  }`}
+                  className="mx-auto w-full max-w-[420px]"
                 />
               </div>
             </div>

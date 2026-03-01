@@ -12,8 +12,7 @@ export function HowItWorks() {
               src="/images/sketch_service_mentions.png"
               alt="Signalze app sketch showing mentions feed and notification settings"
               width={380}
-              height={520}
-              className="h-auto w-full max-w-[280px] mix-blend-multiply sm:max-w-[340px]"
+              className="h-auto w-full max-w-[280px] sm:max-w-[340px]"
               style={{ transform: "rotate(2deg)" }}
             />
           </div>
