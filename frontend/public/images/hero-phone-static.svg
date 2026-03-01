@@ -76,6 +76,6 @@
   </g>
   <g filter="url(#shadow-chip)">
     <rect x="575" y="760" width="130" height="50" rx="25" fill="#FFFFFF" />
-    <text x="610" y="791" font-size="16" font-family="Inter, Arial, sans-serif" font-weight="600" fill="#6E727D">AI codes</text>
+    <text x="610" y="791" font-size="16" font-family="Inter, Arial, sans-serif" font-weight="600" fill="#6E727D">Quick setup</text>
   </g>
 </svg>

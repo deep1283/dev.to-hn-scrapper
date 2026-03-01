@@ -34,7 +34,7 @@ export function UseCases() {
   return (
     <section id="use-cases" className="px-6 py-20 md:py-32">
       <div className="mx-auto max-w-6xl">
-        <p className="text-center text-xs font-medium uppercase tracking-widest text-muted-foreground">
+        <p className="text-center font-handwriting text-lg text-primary">
           Use cases
         </p>
         <h2 className="mx-auto mt-3 max-w-lg text-center font-serif text-4xl leading-tight text-foreground md:text-5xl text-balance">
@@ -45,22 +45,28 @@ export function UseCases() {
           {useCases.map((useCase) => (
             <div
               key={useCase.title}
-              className={`grid items-center gap-10 md:grid-cols-2 ${
-                useCase.reverse ? "" : ""
-              }`}
+              className="grid items-center gap-10 md:grid-cols-2"
             >
-              <div className={useCase.reverse ? "order-2 md:order-1" : "order-2"}>
-                <span className="inline-block rounded-full bg-accent/40 px-3 py-1 text-xs font-medium text-accent-foreground">
+              <div
+                className={
+                  useCase.reverse ? "order-2 md:order-1" : "order-2"
+                }
+              >
+                <span className="font-handwriting inline-block text-base text-primary">
                   {useCase.badge}
                 </span>
-                <h3 className="mt-4 font-serif text-3xl text-foreground md:text-4xl">
+                <h3 className="mt-3 font-serif text-3xl text-foreground md:text-4xl">
                   {useCase.title}
                 </h3>
                 <p className="mt-4 max-w-md leading-relaxed text-muted-foreground">
                   {useCase.description}
                 </p>
               </div>
-              <div className={useCase.reverse ? "order-1 md:order-2" : "order-1"}>
+              <div
+                className={
+                  useCase.reverse ? "order-1 md:order-2" : "order-1"
+                }
+              >
                 <Image
                   src={useCase.image}
                   alt={useCase.imageAlt}
