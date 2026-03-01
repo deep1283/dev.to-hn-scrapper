@@ -30,6 +30,8 @@ export type ProfileRow = {
   id: string
   email: string | null
   plan_tier: PlanTier
+  pending_plan_tier: PlanTier | null
+  pending_plan_effective_at: string | null
   billing_mode: BillingMode | null
   plan_selected_at: string | null
   trial_started_at: string | null
@@ -130,6 +132,7 @@ export async function restRequest<T>(path: string, accessToken: string, init?: R
             : undefined
         : undefined
 
+    console.error(`[restRequest] Supabase REST error on ${path}:`, { status: response.status, details })
     throw new AppError(400, "Request could not be completed.", details ?? `Supabase REST status ${response.status}`)
   }
 
@@ -189,19 +192,75 @@ export async function getAuthUser(accessToken: string): Promise<{ id: string; em
 }
 
 export async function getProfile(accessToken: string, userId: string): Promise<ProfileRow | null> {
-  const rows = await restRequest<ProfileRow[]>(
-    `/profiles?id=eq.${encodeURIComponent(
-      userId,
-    )}&select=id,email,plan_tier,billing_mode,plan_selected_at,trial_started_at,trial_ends_at,onboarding_completed`,
-    accessToken,
-  )
-  return rows[0] ?? null
+  try {
+    const rows = await restRequest<ProfileRow[]>(
+      `/profiles?id=eq.${encodeURIComponent(
+        userId,
+      )}&select=id,email,plan_tier,pending_plan_tier,pending_plan_effective_at,billing_mode,plan_selected_at,trial_started_at,trial_ends_at,onboarding_completed`,
+      accessToken,
+    )
+    return rows[0] ?? null
+  } catch (error) {
+    const details = error instanceof Error ? error.message.toLowerCase() : ""
+    if (!details.includes("pending_plan_tier")) {
+      throw error
+    }
+
+    const legacyRows = await restRequest<
+      Array<
+        Omit<ProfileRow, "pending_plan_tier" | "pending_plan_effective_at"> & {
+          pending_plan_tier?: null
+          pending_plan_effective_at?: null
+        }
+      >
+    >(
+      `/profiles?id=eq.${encodeURIComponent(
+        userId,
+      )}&select=id,email,plan_tier,billing_mode,plan_selected_at,trial_started_at,trial_ends_at,onboarding_completed`,
+      accessToken,
+    )
+    const legacy = legacyRows[0]
+    if (!legacy) {
+      return null
+    }
+    return {
+      ...legacy,
+      pending_plan_tier: null,
+      pending_plan_effective_at: null,
+    }
+  }
+}
+
+async function applyPendingPlanIfDue(accessToken: string, userId: string, profile: ProfileRow): Promise<ProfileRow> {
+  const pendingPlan = profile.pending_plan_tier
+  const pendingEffectiveAt = profile.pending_plan_effective_at
+  if (!pendingPlan || !pendingEffectiveAt) {
+    return profile
+  }
+
+  const effectiveAtMs = new Date(pendingEffectiveAt).getTime()
+  if (!Number.isFinite(effectiveAtMs)) {
+    return patchProfile(accessToken, userId, {
+      pending_plan_tier: null,
+      pending_plan_effective_at: null,
+    })
+  }
+
+  if (effectiveAtMs > Date.now()) {
+    return profile
+  }
+
+  return patchProfile(accessToken, userId, {
+    plan_tier: pendingPlan,
+    pending_plan_tier: null,
+    pending_plan_effective_at: null,
+  })
 }
 
 export async function ensureProfile(accessToken: string, userId: string, email?: string): Promise<ProfileRow> {
   const existing = await getProfile(accessToken, userId)
   if (existing) {
-    return existing
+    return applyPendingPlanIfDue(accessToken, userId, existing)
   }
 
   await restRequest<ProfileRow[]>(`/profiles`, accessToken, {

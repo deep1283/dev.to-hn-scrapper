@@ -14,6 +14,8 @@ export type ProfileRow = {
   id: string
   email: Nullable<string>
   plan_tier: PlanTier
+  pending_plan_tier: Nullable<PlanTier>
+  pending_plan_effective_at: Nullable<string>
   billing_mode: Nullable<BillingMode>
   plan_selected_at: Nullable<string>
   trial_started_at: Nullable<string>
@@ -209,4 +211,3 @@ export async function syncTrackingSetup(_session: SessionData, brandNames: strin
     }),
   })
 }
-
