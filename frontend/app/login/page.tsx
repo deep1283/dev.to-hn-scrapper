@@ -262,7 +262,7 @@ function LoginForm() {
       </div>
 
       {/* Right panel — Login form */}
-      <div className="flex w-full flex-col justify-center px-6 py-12 sm:px-12 lg:w-1/2 lg:px-20">
+      <div className="flex w-full flex-col justify-center px-5 py-10 sm:px-12 lg:w-1/2 lg:px-20">
         <div className="mx-auto w-full max-w-md">
           {/* Logo */}
           <Link href="/" className="inline-flex items-center gap-3" aria-label="Signalze home">
@@ -274,14 +274,14 @@ function LoginForm() {
               className="h-10 w-10 rounded-md object-cover"
               priority
             />
-            <span className="font-serif text-2xl font-bold text-foreground">signalze</span>
+            <span className="font-serif text-xl font-bold text-foreground sm:text-2xl">signalze</span>
           </Link>
 
           <div className="mt-8">
             <p className="font-handwriting text-lg text-primary">
               {preSelectedPlan ? "Continue setup" : "Welcome back"}
             </p>
-            <h1 className="mt-1 font-serif text-3xl text-foreground sm:text-4xl">
+            <h1 className="mt-1 font-serif text-2xl text-foreground sm:text-4xl">
               {preSelectedPlan ? "Start your free trial" : "Sign in"}
             </h1>
             <p className="mt-2 text-sm text-muted-foreground">
@@ -339,7 +339,7 @@ function LoginForm() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="mt-1 inline-flex h-11 items-center justify-center rounded-full bg-accent px-6 text-sm font-semibold text-accent-foreground transition-all hover:brightness-95 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
+              className="mt-1 inline-flex h-11 w-full items-center justify-center rounded-full bg-accent px-6 text-sm font-semibold text-accent-foreground transition-all hover:brightness-95 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
             >
               {isSubmitting ? "Sending magic link..." : "Send magic link"}
             </button>

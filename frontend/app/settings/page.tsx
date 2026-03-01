@@ -259,7 +259,7 @@ export default function SettingsPage() {
                 className="h-9 w-9 rounded-md object-cover"
                 priority
               />
-              <span className="font-serif text-2xl font-bold text-foreground">signalze</span>
+              <span className="font-serif text-xl font-bold text-foreground sm:text-2xl">signalze</span>
             </Link>
             <div className="flex items-center gap-2">
               <Link
@@ -278,10 +278,16 @@ export default function SettingsPage() {
               </button>
             </div>
           </div>
+          <Link
+            href="/dashboard"
+            className="mt-3 inline-flex h-9 items-center justify-center rounded-full border border-border/40 px-3 text-xs font-medium text-foreground transition-opacity hover:opacity-80 md:hidden"
+          >
+            Back to dashboard
+          </Link>
         </header>
 
         <section className="p-2 sm:p-3">
-          <h1 className="font-handwriting text-4xl text-card-foreground">Settings</h1>
+          <h1 className="font-handwriting text-3xl text-card-foreground sm:text-4xl">Settings</h1>
           <p className="mt-1 text-sm text-muted-foreground">Manage your plan, brands, and keywords.</p>
 
           {error ? <p className="mt-4 rounded-xl bg-destructive/10 px-4 py-2.5 text-sm text-destructive">{error}</p> : null}
@@ -312,7 +318,7 @@ export default function SettingsPage() {
                       <button
                         key={brand.id}
                         onClick={() => void removeBrand(brand)}
-                        className="group rounded-full border border-border/40 bg-background px-3.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:text-destructive"
+                        className="group max-w-full break-all rounded-full border border-border/40 bg-background px-3.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:text-destructive"
                       >
                         {brand.name} <span className="opacity-50 group-hover:opacity-100">×</span>
                       </button>
@@ -328,7 +334,7 @@ export default function SettingsPage() {
                       <button
                         key={keyword.id}
                         onClick={() => void removeKeyword(keyword)}
-                        className="group rounded-full border border-border/40 bg-background px-3.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:text-destructive"
+                        className="group max-w-full break-all rounded-full border border-border/40 bg-background px-3.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:text-destructive"
                       >
                         {keyword.query} <span className="opacity-50 group-hover:opacity-100">×</span>
                       </button>
@@ -342,7 +348,7 @@ export default function SettingsPage() {
 
           <div className="mt-8 flex max-w-4xl flex-col gap-10">
             <section>
-              <h2 className="font-handwriting text-3xl text-card-foreground">Plan details</h2>
+              <h2 className="font-handwriting text-2xl text-card-foreground sm:text-3xl">Plan details</h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 {planConfig.name} · {planConfig.price}
               </p>
@@ -369,7 +375,7 @@ export default function SettingsPage() {
 
               <Link
                 href="/pricing?manage=1"
-                className="mt-5 inline-flex h-10 items-center justify-center rounded-full border border-border/40 px-5 text-sm font-medium text-foreground transition-opacity hover:opacity-80"
+                className="mt-5 inline-flex h-10 w-full items-center justify-center rounded-full border border-border/40 px-5 text-sm font-medium text-foreground transition-opacity hover:opacity-80 sm:w-auto"
               >
                 Manage plan
               </Link>
@@ -377,7 +383,7 @@ export default function SettingsPage() {
 
             <section>
               <div className="flex items-center justify-between gap-3">
-                <h2 className="font-handwriting text-3xl text-card-foreground">Brands</h2>
+                <h2 className="font-handwriting text-2xl text-card-foreground sm:text-3xl">Brands</h2>
                 <span className="text-xs font-medium text-muted-foreground">{activeBrands.length}/{planConfig.maxBrands ?? "∞"}</span>
               </div>
               <div className="mt-4 flex flex-col gap-2 sm:flex-row">
@@ -397,7 +403,7 @@ export default function SettingsPage() {
                 <button
                   onClick={() => void addBrand()}
                   disabled={isSaving || brandLimitReached}
-                  className="h-10 rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="h-10 w-full rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
                 >
                   {brandLimitReached ? "Limit reached" : "Add"}
                 </button>
@@ -407,7 +413,7 @@ export default function SettingsPage() {
                   <button
                     key={brand.id}
                     onClick={() => void removeBrand(brand)}
-                    className="group rounded-full border border-border/40 px-3.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:text-destructive"
+                    className="group max-w-full break-all rounded-full border border-border/40 px-3.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:text-destructive"
                   >
                     {brand.name} <span className="opacity-50 group-hover:opacity-100">×</span>
                   </button>
@@ -418,7 +424,7 @@ export default function SettingsPage() {
 
             <section>
               <div className="flex items-center justify-between gap-3">
-                <h2 className="font-handwriting text-3xl text-card-foreground">Niche keywords</h2>
+                <h2 className="font-handwriting text-2xl text-card-foreground sm:text-3xl">Niche keywords</h2>
                 <span className="text-xs font-medium text-muted-foreground">{activeKeywords.length}/{planConfig.maxKeywords}</span>
               </div>
               <div className="mt-4 flex flex-col gap-2 sm:flex-row">
@@ -438,7 +444,7 @@ export default function SettingsPage() {
                 <button
                   onClick={() => void addKeyword()}
                   disabled={isSaving || keywordLimitReached}
-                  className="h-10 rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="h-10 w-full rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
                 >
                   {keywordLimitReached ? "Limit reached" : "Add"}
                 </button>
@@ -448,7 +454,7 @@ export default function SettingsPage() {
                   <button
                     key={keyword.id}
                     onClick={() => void removeKeyword(keyword)}
-                    className="group rounded-full border border-border/40 px-3.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:text-destructive"
+                    className="group max-w-full break-all rounded-full border border-border/40 px-3.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:text-destructive"
                   >
                     {keyword.query} <span className="opacity-50 group-hover:opacity-100">×</span>
                   </button>

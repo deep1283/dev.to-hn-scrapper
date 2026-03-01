@@ -19,10 +19,10 @@ function XLogo({ className = "h-4 w-4" }: { className?: string }) {
 
 export default function ContactPage() {
   return (
-    <main className="min-h-screen bg-background px-6 py-16 sm:px-8">
+    <main className="min-h-screen bg-background px-4 py-12 sm:px-8 sm:py-16">
       <article className="mx-auto max-w-3xl">
         <p className="font-handwriting text-lg text-primary">Contact</p>
-        <h1 className="mt-2 font-serif text-4xl text-foreground sm:text-5xl">Get in touch</h1>
+        <h1 className="mt-2 font-serif text-3xl text-foreground sm:text-5xl">Get in touch</h1>
         <p className="mt-4 text-base text-muted-foreground">
           For support, product questions, or partnership requests, use the channels below.
         </p>
@@ -31,7 +31,7 @@ export default function ContactPage() {
           <section>
             <h2 className="font-serif text-2xl text-foreground">Email</h2>
             <p className="mt-3">
-              <a className="underline underline-offset-4" href="mailto:deepmishra1283@gmail.com">
+              <a className="break-all underline underline-offset-4" href="mailto:deepmishra1283@gmail.com">
                 deepmishra1283@gmail.com
               </a>
             </p>
@@ -43,7 +43,7 @@ export default function ContactPage() {
               href="https://x.com/deepmishra1283"
               target="_blank"
               rel="noreferrer"
-              className="mt-3 inline-flex items-center gap-2 underline underline-offset-4"
+              className="mt-3 inline-flex max-w-full items-center gap-2 break-all underline underline-offset-4"
             >
               <XLogo />
               x.com/deepmishra1283

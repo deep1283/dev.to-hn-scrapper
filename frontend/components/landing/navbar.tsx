@@ -33,7 +33,7 @@ export function Navbar() {
             className="h-10 w-10 rounded-md object-cover"
             priority
           />
-          <span className="font-serif text-2xl font-bold tracking-tight text-foreground">signalze</span>
+          <span className="font-serif text-xl font-bold tracking-tight text-foreground sm:text-2xl">signalze</span>
         </Link>
 
         <div className="hidden items-center gap-8 md:flex">

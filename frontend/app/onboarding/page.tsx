@@ -176,14 +176,14 @@ export default function OnboardingPage() {
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
         {/* Header */}
         <header className="rounded-2xl border border-border/60 bg-card p-5 sm:p-6">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <Link href="/" className="font-serif text-lg font-bold text-foreground">
               signalze
             </Link>
             <span className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-muted-foreground">Step 3 of 4</span>
           </div>
           <p className="mt-4 font-handwriting text-lg text-primary">Almost there!</p>
-          <h1 className="mt-1 font-serif text-3xl text-foreground">Set up your tracking</h1>
+          <h1 className="mt-1 font-serif text-2xl text-foreground sm:text-3xl">Set up your tracking</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Add your brand and niche keywords. Then we&apos;ll redirect you to the dashboard.
           </p>
@@ -217,7 +217,7 @@ export default function OnboardingPage() {
               <button
                 onClick={addBrand}
                 disabled={brandLimitReached}
-                className="h-10 shrink-0 rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40"
+                className="h-10 w-full shrink-0 rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
               >
                 {brandLimitReached ? "Limit reached" : "Add"}
               </button>
@@ -228,7 +228,7 @@ export default function OnboardingPage() {
                 <button
                   key={brand}
                   onClick={() => removeBrand(brand)}
-                  className="group rounded-full bg-secondary px-3.5 py-1.5 text-xs font-medium text-secondary-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                  className="group max-w-full break-all rounded-full bg-secondary px-3.5 py-1.5 text-xs font-medium text-secondary-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                 >
                   {brand}{" "}
                   <span className="opacity-50 group-hover:opacity-100">×</span>
@@ -263,7 +263,7 @@ export default function OnboardingPage() {
               <button
                 onClick={addKeyword}
                 disabled={keywordLimitReached}
-                className="h-10 shrink-0 rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40"
+                className="h-10 w-full shrink-0 rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
               >
                 {keywordLimitReached ? "Limit reached" : "Add"}
               </button>
@@ -274,7 +274,7 @@ export default function OnboardingPage() {
                 <button
                   key={keyword}
                   onClick={() => removeKeyword(keyword)}
-                  className="group rounded-full bg-muted px-3.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                  className="group max-w-full break-all rounded-full bg-muted px-3.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                 >
                   {keyword}{" "}
                   <span className="opacity-50 group-hover:opacity-100">×</span>
@@ -299,7 +299,7 @@ export default function OnboardingPage() {
             <button
               onClick={() => void continueToDashboard()}
               disabled={isSubmitting}
-              className="inline-flex h-11 items-center justify-center rounded-full bg-accent px-8 text-sm font-semibold text-accent-foreground transition-all hover:brightness-95 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
+              className="inline-flex h-11 w-full items-center justify-center rounded-full bg-accent px-8 text-sm font-semibold text-accent-foreground transition-all hover:brightness-95 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
             >
               {isSubmitting ? "Saving..." : "Continue to dashboard →"}
             </button>

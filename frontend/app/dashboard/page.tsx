@@ -188,7 +188,7 @@ export default function DashboardPage() {
                 className="h-9 w-9 rounded-md object-cover"
                 priority
               />
-              <span className="font-serif text-2xl font-bold text-foreground">signalze</span>
+              <span className="font-serif text-xl font-bold text-foreground sm:text-2xl">signalze</span>
             </Link>
             <div className="flex items-center gap-2">
               <Link
@@ -219,7 +219,7 @@ export default function DashboardPage() {
               <div className="mt-2 flex flex-wrap gap-2">
                 {activeBrands.length ? (
                   activeBrands.map((brand) => (
-                    <span key={brand.id} className="rounded-full border border-border/40 px-3 py-1 text-xs text-foreground">
+                    <span key={brand.id} className="max-w-full break-all rounded-full border border-border/40 px-3 py-1 text-xs text-foreground">
                       {brand.name}
                     </span>
                   ))
@@ -233,7 +233,7 @@ export default function DashboardPage() {
               <div className="mt-2 flex flex-wrap gap-2">
                 {activeKeywords.length ? (
                   activeKeywords.map((keyword) => (
-                    <span key={keyword.id} className="rounded-full border border-border/40 px-3 py-1 text-xs text-foreground">
+                    <span key={keyword.id} className="max-w-full break-all rounded-full border border-border/40 px-3 py-1 text-xs text-foreground">
                       {keyword.query}
                     </span>
                   ))
@@ -316,7 +316,7 @@ export default function DashboardPage() {
                     {mention.matchedTerms.map((term) => (
                       <span
                         key={term}
-                        className="rounded-full border border-border/40 px-2.5 py-0.5 text-[11px] font-medium text-foreground"
+                        className="max-w-full break-all rounded-full border border-border/40 px-2.5 py-0.5 text-[11px] font-medium text-foreground"
                       >
                         {term}
                       </span>

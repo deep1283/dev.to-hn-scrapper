@@ -66,7 +66,7 @@ export default function UpgradePage() {
           <p className="mt-6 font-handwriting text-lg text-primary">
             Trial ended
           </p>
-          <h1 className="mt-2 font-serif text-4xl text-foreground sm:text-5xl">
+          <h1 className="mt-2 font-serif text-3xl text-foreground sm:text-5xl">
             Your trial has ended
           </h1>
           <p className="mt-4 max-w-xl text-base text-muted-foreground">
@@ -83,7 +83,7 @@ export default function UpgradePage() {
             return (
               <article
                 key={plan.id}
-                className={`relative flex flex-col gap-6 rounded-2xl border bg-card p-7 transition-all duration-200 hover:shadow-lg sm:p-8 ${
+                className={`relative flex flex-col gap-6 rounded-2xl border bg-card p-6 transition-all duration-200 hover:shadow-lg sm:p-8 ${
                   isPopular ? "border-accent shadow-md" : "border-border/60"
                 }`}
               >
@@ -97,7 +97,7 @@ export default function UpgradePage() {
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     {plan.name}
                   </p>
-                  <p className="mt-3 font-serif text-5xl text-foreground">
+                  <p className="mt-3 font-serif text-4xl text-foreground sm:text-5xl">
                     {plan.price}
                   </p>
                   <p className="mt-2 text-sm text-muted-foreground">
@@ -118,7 +118,7 @@ export default function UpgradePage() {
 
                 <Link
                   href={ctaHref}
-                  className={`mt-auto inline-flex h-12 items-center justify-center rounded-full px-6 text-sm font-semibold transition-all active:scale-[0.98] ${
+                  className={`mt-auto inline-flex h-12 w-full items-center justify-center rounded-full px-6 text-sm font-semibold transition-all active:scale-[0.98] ${
                     isPopular
                       ? "bg-accent text-accent-foreground hover:brightness-95"
                       : "border border-border text-foreground hover:bg-secondary"
