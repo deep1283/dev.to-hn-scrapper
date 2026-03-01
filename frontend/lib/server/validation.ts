@@ -1,5 +1,5 @@
 import { PLAN_CONFIG, isPlanId, type PlanId } from "@/lib/plans"
-import { badRequest, paymentRequired } from "@/lib/server/errors"
+import { badRequest, forbidden, paymentRequired } from "@/lib/server/errors"
 import type { ProfileRow } from "@/lib/server/supabase"
 
 export function normalizeInput(value: string): string {
@@ -70,6 +70,39 @@ export function ensureActiveEntitlement(profile: ProfileRow) {
   if (isTrialExpired(profile)) {
     throw paymentRequired()
   }
+}
+
+export function ensureProPlan(profile: Pick<ProfileRow, "plan_tier">) {
+  if (profile.plan_tier !== "growth_15") {
+    throw forbidden("Slack updates are available on Pro plan.")
+  }
+}
+
+export function parseSlackWebhookUrl(value: unknown): string {
+  if (typeof value !== "string") {
+    throw badRequest("Slack webhook URL is required.")
+  }
+
+  const normalized = value.trim()
+  if (!normalized) {
+    throw badRequest("Slack webhook URL is required.")
+  }
+
+  let parsed: URL
+  try {
+    parsed = new URL(normalized)
+  } catch {
+    throw badRequest("Enter a valid Slack webhook URL.")
+  }
+
+  const hostname = parsed.hostname.toLowerCase()
+  const path = parsed.pathname
+  const isSlackHost = hostname === "hooks.slack.com" || hostname === "hooks.slack-gov.com"
+  if (parsed.protocol !== "https:" || !isSlackHost || !path.startsWith("/services/")) {
+    throw badRequest("Enter a valid Slack incoming webhook URL.")
+  }
+
+  return parsed.toString()
 }
 
 export function validateEmail(rawEmail: unknown): string {

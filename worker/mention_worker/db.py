@@ -288,11 +288,15 @@ class Database:
                 """
                 insert into public.alert_deliveries
                   (user_id, keyword_id, mention_id, status, next_attempt_at)
-                values (%s, %s, %s, 'pending', now())
+                select %s, %s, %s, 'pending', now()
+                from public.profiles p
+                where p.id = %s
+                  and p.plan_tier = 'growth_15'
+                  and coalesce(nullif(btrim(p.slack_webhook_url_enc), ''), '') <> ''
                 on conflict (user_id, mention_id, keyword_id, channel) do nothing
                 returning id
                 """,
-                (user_id, keyword_id, mention_id),
+                (user_id, keyword_id, mention_id, user_id),
             )
             row = cur.fetchone()
         return row is not None
@@ -332,6 +336,8 @@ class Database:
                 where ad.status in ('pending', 'failed')
                   and ad.next_attempt_at <= now()
                   and ad.retry_count < %s
+                  and p.plan_tier = 'growth_15'
+                  and coalesce(nullif(btrim(p.slack_webhook_url_enc), ''), '') <> ''
                 order by ad.next_attempt_at asc
                 limit %s
                 """,

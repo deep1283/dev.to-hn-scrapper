@@ -39,6 +39,23 @@ function formatTime(isoTime: string): string {
   }).format(date)
 }
 
+type SlackStatusResponse = {
+  connected?: boolean
+  webhookHint?: string | null
+  canUseSlack?: boolean
+}
+
+type SlackMutationResponse = {
+  connected?: boolean
+  webhookHint?: string | null
+  message?: string
+}
+
+async function parseApiError(response: Response, fallback: string): Promise<string> {
+  const payload = (await response.json().catch(() => null)) as { error?: string } | null
+  return payload?.error ?? fallback
+}
+
 export default function SettingsPage() {
   const [session, setSession] = useState<SessionData | null>(null)
   const [plan, setPlan] = useState<PlanId>("starter_9")
@@ -54,7 +71,13 @@ export default function SettingsPage() {
 
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
+  const [isSlackSaving, setIsSlackSaving] = useState(false)
+  const [isSlackTesting, setIsSlackTesting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [slackFeedback, setSlackFeedback] = useState<string | null>(null)
+  const [slackConnected, setSlackConnected] = useState(false)
+  const [slackWebhookHint, setSlackWebhookHint] = useState<string | null>(null)
+  const [slackWebhookInput, setSlackWebhookInput] = useState("")
 
   useEffect(() => {
     async function bootstrap() {
@@ -89,9 +112,24 @@ export default function SettingsPage() {
         setBilling(profile.billing_mode ?? "trial")
         setTrialEndsAt(profile.trial_ends_at ?? null)
 
-        const [brands, keywords] = await Promise.all([listBrands(validSession), listKeywords(validSession)])
+        const [brands, keywords, slackStatusResponse] = await Promise.all([
+          listBrands(validSession),
+          listKeywords(validSession),
+          fetch("/api/integrations/slack", {
+            method: "GET",
+            credentials: "include",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }),
+        ])
         setBrandRows(brands)
         setKeywordRows(keywords)
+        if (slackStatusResponse.ok) {
+          const slackStatus = (await slackStatusResponse.json()) as SlackStatusResponse
+          setSlackConnected(Boolean(slackStatus.connected))
+          setSlackWebhookHint(slackStatus.webhookHint ?? null)
+        }
       } catch (bootstrapError) {
         const message = bootstrapError instanceof Error ? bootstrapError.message : "Failed to load settings"
         if (message.toLowerCase().includes("trial has ended")) {
@@ -118,6 +156,7 @@ export default function SettingsPage() {
 
   const brandLimitReached = planConfig.maxBrands !== null && activeBrands.length >= planConfig.maxBrands
   const keywordLimitReached = activeKeywords.length >= planConfig.maxKeywords
+  const canUseSlack = plan === "growth_15"
 
   async function addBrand() {
     if (!session || brandLimitReached) {
@@ -235,6 +274,125 @@ export default function SettingsPage() {
       credentials: "include",
     }).catch(() => undefined)
     window.location.replace("/login")
+  }
+
+  async function refreshSlackStatus() {
+    const response = await fetch("/api/integrations/slack", {
+      method: "GET",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error(await parseApiError(response, "Unable to load Slack status."))
+    }
+
+    const payload = (await response.json()) as SlackStatusResponse
+    setSlackConnected(Boolean(payload.connected))
+    setSlackWebhookHint(payload.webhookHint ?? null)
+  }
+
+  async function connectSlack() {
+    if (!canUseSlack) {
+      setSlackFeedback("Slack updates are available on Pro plan.")
+      return
+    }
+
+    setError(null)
+    setSlackFeedback(null)
+    const webhookUrl = cleanInput(slackWebhookInput)
+    if (!webhookUrl) {
+      setSlackFeedback("Enter your Slack incoming webhook URL.")
+      return
+    }
+
+    setIsSlackSaving(true)
+    try {
+      const response = await fetch("/api/integrations/slack", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ webhookUrl }),
+      })
+
+      if (!response.ok) {
+        throw new Error(await parseApiError(response, "Unable to connect Slack updates."))
+      }
+
+      const payload = (await response.json()) as SlackMutationResponse
+      setSlackConnected(Boolean(payload.connected))
+      setSlackWebhookHint(payload.webhookHint ?? null)
+      setSlackWebhookInput("")
+      setSlackFeedback(payload.message ?? "Slack updates connected.")
+    } catch (slackError) {
+      setSlackFeedback(slackError instanceof Error ? slackError.message : "Unable to connect Slack updates.")
+    } finally {
+      setIsSlackSaving(false)
+    }
+  }
+
+  async function disconnectSlack() {
+    setError(null)
+    setSlackFeedback(null)
+    setIsSlackSaving(true)
+    try {
+      const response = await fetch("/api/integrations/slack", {
+        method: "DELETE",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error(await parseApiError(response, "Unable to disconnect Slack updates."))
+      }
+
+      const payload = (await response.json()) as SlackMutationResponse
+      setSlackConnected(Boolean(payload.connected))
+      setSlackWebhookHint(payload.webhookHint ?? null)
+      setSlackFeedback(payload.message ?? "Slack updates disconnected.")
+    } catch (slackError) {
+      setSlackFeedback(slackError instanceof Error ? slackError.message : "Unable to disconnect Slack updates.")
+    } finally {
+      setIsSlackSaving(false)
+    }
+  }
+
+  async function sendSlackTest() {
+    if (!canUseSlack) {
+      setSlackFeedback("Slack updates are available on Pro plan.")
+      return
+    }
+
+    setError(null)
+    setSlackFeedback(null)
+    setIsSlackTesting(true)
+    try {
+      const response = await fetch("/api/integrations/slack/test", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error(await parseApiError(response, "Unable to send Slack test alert."))
+      }
+
+      const payload = (await response.json()) as { message?: string }
+      setSlackFeedback(payload.message ?? "Test alert sent to Slack.")
+      await refreshSlackStatus()
+    } catch (slackError) {
+      setSlackFeedback(slackError instanceof Error ? slackError.message : "Unable to send Slack test alert.")
+    } finally {
+      setIsSlackTesting(false)
+    }
   }
 
   if (isLoading) {
@@ -379,6 +537,88 @@ export default function SettingsPage() {
               >
                 Manage plan
               </Link>
+            </section>
+
+            <section>
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="font-handwriting text-2xl text-card-foreground sm:text-3xl">Slack alerts</h2>
+                <span className="text-xs font-medium text-muted-foreground">
+                  {canUseSlack ? (slackConnected ? "Connected" : "Not connected") : "Pro only"}
+                </span>
+              </div>
+
+              {canUseSlack ? (
+                <>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Connect your Slack incoming webhook to get mention updates faster.
+                  </p>
+
+                  {slackWebhookHint ? (
+                    <p className="mt-3 text-xs text-muted-foreground">
+                      Current webhook: <span className="font-medium text-foreground">{slackWebhookHint}</span>
+                    </p>
+                  ) : null}
+
+                  <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                    <input
+                      value={slackWebhookInput}
+                      onChange={(event) => setSlackWebhookInput(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault()
+                          void connectSlack()
+                        }
+                      }}
+                      placeholder="https://hooks.slack.com/services/..."
+                      className="h-10 w-full rounded-xl border border-input bg-background px-4 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-accent/40"
+                    />
+                    <button
+                      onClick={() => void connectSlack()}
+                      disabled={isSlackSaving || isSlackTesting}
+                      className="h-10 w-full rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
+                    >
+                      {isSlackSaving ? "Saving..." : slackConnected ? "Update" : "Connect"}
+                    </button>
+                  </div>
+
+                  <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                    <button
+                      onClick={() => void sendSlackTest()}
+                      disabled={!slackConnected || isSlackSaving || isSlackTesting}
+                      className="inline-flex h-10 w-full items-center justify-center rounded-full border border-border/40 px-5 text-sm font-medium text-foreground transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
+                    >
+                      {isSlackTesting ? "Sending..." : "Send test alert"}
+                    </button>
+                    {slackConnected ? (
+                      <button
+                        onClick={() => void disconnectSlack()}
+                        disabled={isSlackSaving || isSlackTesting}
+                        className="inline-flex h-10 w-full items-center justify-center rounded-full border border-border/40 px-5 text-sm font-medium text-foreground transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
+                      >
+                        Disconnect
+                      </button>
+                    ) : null}
+                  </div>
+                </>
+              ) : (
+                <div className="mt-4 rounded-xl border border-border/40 px-4 py-3">
+                  <p className="text-sm text-muted-foreground">
+                    Slack updates are available on Pro.
+                  </p>
+                  <Link
+                    href="/pricing?manage=1"
+                    className="mt-3 inline-flex h-9 items-center justify-center rounded-full border border-border/40 px-4 text-sm font-medium text-foreground transition-opacity hover:opacity-80"
+                  >
+                    Upgrade to Pro
+                  </Link>
+                </div>
+              )}
+
+              {slackFeedback ? (
+                <p className="mt-3 rounded-xl border border-border/40 px-4 py-2.5 text-sm text-foreground">
+                  {slackFeedback}
+                </p>
+              ) : null}
             </section>
 
             <section>
