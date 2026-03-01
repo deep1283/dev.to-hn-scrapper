@@ -53,6 +53,8 @@ alter table public.profiles add column if not exists billing_mode text;
 alter table public.profiles add column if not exists plan_selected_at timestamptz;
 alter table public.profiles add column if not exists trial_started_at timestamptz;
 alter table public.profiles add column if not exists trial_ends_at timestamptz;
+alter table public.profiles add column if not exists pending_plan_tier public.plan_tier;
+alter table public.profiles add column if not exists pending_plan_effective_at timestamptz;
 alter table public.profiles add column if not exists onboarding_completed boolean not null default false;
 alter table public.profiles drop constraint if exists profiles_billing_mode_check;
 alter table public.profiles add constraint profiles_billing_mode_check check (billing_mode in ('trial', 'paid'));
