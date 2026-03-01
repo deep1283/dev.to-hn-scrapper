@@ -13,21 +13,21 @@ export type PlanConfig = {
 export const PLAN_CONFIG: Record<PlanId, PlanConfig> = {
   starter_9: {
     id: "starter_9",
-    name: "Plus",
-    price: "$9/month",
+    name: "Starter",
+    price: "$5/month",
     maxBrands: 1,
     maxKeywords: 7,
     trialDays: 2,
-    description: "Best for solo founders tracking one brand.",
+    description: "For solo founders tracking one brand with dashboard updates.",
   },
   growth_15: {
     id: "growth_15",
     name: "Pro",
-    price: "$15/month",
+    price: "$9/month",
     maxBrands: null,
     maxKeywords: 35,
     trialDays: 2,
-    description: "For teams tracking multiple brands and deeper niches.",
+    description: "For teams tracking multiple brands with Slack alerts and faster refresh.",
   },
 }
 

@@ -70,7 +70,7 @@ export default function UpgradePage() {
             Your trial has ended
           </h1>
           <p className="mt-4 max-w-xl text-base text-muted-foreground">
-            Upgrade now to continue tracking mentions and receiving Slack alerts.
+            Upgrade now to continue tracking mentions across Hacker News, Dev.to, and GitHub Discussions.
           </p>
         </div>
 
@@ -109,11 +109,21 @@ export default function UpgradePage() {
                   <UpgradeFeature>
                     {plan.maxBrands === null ? "Multiple brands" : `${plan.maxBrands} brand`}
                   </UpgradeFeature>
-                  <UpgradeFeature>{plan.maxKeywords} keywords</UpgradeFeature>
+                  <UpgradeFeature>Up to {plan.maxKeywords} keywords</UpgradeFeature>
                   {SOURCES.map((s) => (
                     <UpgradeFeature key={s}>{s}</UpgradeFeature>
                   ))}
-                  <UpgradeFeature>Slack notifications</UpgradeFeature>
+                  {plan.id === "starter_9" ? (
+                    <>
+                      <UpgradeFeature>Dashboard updates</UpgradeFeature>
+                      <UpgradeFeature>Standard refresh</UpgradeFeature>
+                    </>
+                  ) : (
+                    <>
+                      <UpgradeFeature>Slack updates</UpgradeFeature>
+                      <UpgradeFeature>Faster refresh</UpgradeFeature>
+                    </>
+                  )}
                 </ul>
 
                 <Link

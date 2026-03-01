@@ -152,12 +152,22 @@ export default function PricingPage() {
                       ? "Multiple brands"
                       : `${plan.maxBrands} brand`}
                   </PricingFeature>
-                  <PricingFeature>{plan.maxKeywords} keywords</PricingFeature>
+                  <PricingFeature>Up to {plan.maxKeywords} keywords</PricingFeature>
                   <PricingFeature>2-day free trial</PricingFeature>
                   {SOURCES.map((s) => (
                     <PricingFeature key={s}>{s}</PricingFeature>
                   ))}
-                  <PricingFeature>Slack notifications</PricingFeature>
+                  {plan.id === "starter_9" ? (
+                    <>
+                      <PricingFeature>Dashboard updates</PricingFeature>
+                      <PricingFeature>Standard refresh</PricingFeature>
+                    </>
+                  ) : (
+                    <>
+                      <PricingFeature>Slack updates</PricingFeature>
+                      <PricingFeature>Faster refresh</PricingFeature>
+                    </>
+                  )}
                 </ul>
 
                 {manageMode ? (

@@ -27,6 +27,12 @@ export function Hero() {
             >
               Start tracking for free <ArrowRight className="h-4 w-4" />
             </Link>
+            <Link
+              href="/login"
+              className="inline-flex items-center justify-center rounded-full border border-border px-7 py-3.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
+            >
+              Log in
+            </Link>
           </div>
         </Reveal>
 
