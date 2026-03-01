@@ -86,6 +86,9 @@ create table if not exists public.keywords (
 create unique index if not exists keywords_user_brand_query_lower_uq
   on public.keywords(user_id, coalesce(brand_id, '00000000-0000-0000-0000-000000000000'::uuid), lower(btrim(query)));
 
+create index if not exists keywords_brand_id_idx
+  on public.keywords(brand_id);
+
 create table if not exists public.keyword_sources (
   keyword_id uuid not null references public.keywords(id) on delete cascade,
   source public.source_name not null,
@@ -128,6 +131,15 @@ create table if not exists public.mention_matches (
 create index if not exists mention_matches_user_time_idx
   on public.mention_matches(user_id, matched_at desc);
 
+create index if not exists mention_matches_brand_id_idx
+  on public.mention_matches(brand_id);
+
+create index if not exists mention_matches_keyword_id_idx
+  on public.mention_matches(keyword_id);
+
+create index if not exists mention_matches_mention_id_idx
+  on public.mention_matches(mention_id);
+
 create table if not exists public.alert_deliveries (
   id bigint generated always as identity primary key,
   user_id uuid not null references public.profiles(id) on delete cascade,
@@ -147,6 +159,12 @@ create table if not exists public.alert_deliveries (
 create index if not exists alert_deliveries_pending_idx
   on public.alert_deliveries(status, next_attempt_at)
   where status in ('pending', 'failed');
+
+create index if not exists alert_deliveries_keyword_id_idx
+  on public.alert_deliveries(keyword_id);
+
+create index if not exists alert_deliveries_mention_id_idx
+  on public.alert_deliveries(mention_id);
 
 create table if not exists public.keyword_source_state (
   keyword_id uuid not null references public.keywords(id) on delete cascade,
@@ -196,6 +214,7 @@ create index if not exists api_rate_limits_window_started_idx
 create or replace function public.set_updated_at()
 returns trigger
 language plpgsql
+set search_path = ''
 as $$
 begin
   new.updated_at = now();
@@ -319,6 +338,7 @@ for each row execute function public.handle_new_user();
 create or replace function public.enforce_plan_limits()
 returns trigger
 language plpgsql
+set search_path = ''
 as $$
 declare
   tier public.plan_tier;
@@ -381,6 +401,7 @@ for each row execute function public.enforce_plan_limits();
 create or replace function public.seed_keyword_sources_and_state()
 returns trigger
 language plpgsql
+set search_path = ''
 as $$
 declare
   src public.source_name;
@@ -412,6 +433,7 @@ for each row execute function public.seed_keyword_sources_and_state();
 create or replace function public.sync_brand_system_keyword()
 returns trigger
 language plpgsql
+set search_path = ''
 as $$
 declare
   existing_keyword_id uuid;
@@ -446,6 +468,7 @@ $$;
 create or replace function public.delete_brand_system_keyword()
 returns trigger
 language plpgsql
+set search_path = ''
 as $$
 begin
   delete from public.keywords
@@ -471,6 +494,7 @@ create trigger brand_system_keyword_delete
 before delete on public.brands
 for each row execute function public.delete_brand_system_keyword();
 
+alter table public.plan_limits enable row level security;
 alter table public.profiles enable row level security;
 alter table public.brands enable row level security;
 alter table public.keywords enable row level security;
@@ -479,36 +503,42 @@ alter table public.mentions enable row level security;
 alter table public.mention_matches enable row level security;
 alter table public.alert_deliveries enable row level security;
 alter table public.keyword_source_state enable row level security;
+alter table public.worker_runs enable row level security;
 alter table public.webhook_events enable row level security;
 alter table public.api_rate_limits enable row level security;
+
+drop policy if exists "plan_limits_select_authenticated" on public.plan_limits;
+create policy "plan_limits_select_authenticated"
+on public.plan_limits for select
+using ((select auth.role()) in ('authenticated', 'service_role'));
 
 drop policy if exists "profiles_select_own" on public.profiles;
 create policy "profiles_select_own"
 on public.profiles for select
-using (auth.uid() = id);
+using ((select auth.uid()) = id);
 
 drop policy if exists "profiles_update_own" on public.profiles;
 create policy "profiles_update_own"
 on public.profiles for update
-using (auth.uid() = id)
-with check (auth.uid() = id);
+using ((select auth.uid()) = id)
+with check ((select auth.uid()) = id);
 
 drop policy if exists "profiles_insert_own" on public.profiles;
 create policy "profiles_insert_own"
 on public.profiles for insert
-with check (auth.uid() = id);
+with check ((select auth.uid()) = id);
 
 drop policy if exists "brands_owner_all" on public.brands;
 create policy "brands_owner_all"
 on public.brands for all
-using (auth.uid() = user_id)
-with check (auth.uid() = user_id);
+using ((select auth.uid()) = user_id)
+with check ((select auth.uid()) = user_id);
 
 drop policy if exists "keywords_owner_all" on public.keywords;
 create policy "keywords_owner_all"
 on public.keywords for all
-using (auth.uid() = user_id)
-with check (auth.uid() = user_id);
+using ((select auth.uid()) = user_id)
+with check ((select auth.uid()) = user_id);
 
 drop policy if exists "keyword_sources_owner_all" on public.keyword_sources;
 create policy "keyword_sources_owner_all"
@@ -518,7 +548,7 @@ using (
     select 1
     from public.keywords k
     where k.id = keyword_sources.keyword_id
-      and k.user_id = auth.uid()
+      and k.user_id = (select auth.uid())
   )
 )
 with check (
@@ -526,7 +556,7 @@ with check (
     select 1
     from public.keywords k
     where k.id = keyword_sources.keyword_id
-      and k.user_id = auth.uid()
+      and k.user_id = (select auth.uid())
   )
 );
 
@@ -538,22 +568,23 @@ using (
     select 1
     from public.mention_matches mm
     where mm.mention_id = mentions.id
-      and mm.user_id = auth.uid()
+      and mm.user_id = (select auth.uid())
   )
 );
 
 drop policy if exists "mention_matches_owner_all" on public.mention_matches;
 create policy "mention_matches_owner_all"
 on public.mention_matches for all
-using (auth.uid() = user_id)
-with check (auth.uid() = user_id);
+using ((select auth.uid()) = user_id)
+with check ((select auth.uid()) = user_id);
 
 drop policy if exists "alert_deliveries_owner_select" on public.alert_deliveries;
 create policy "alert_deliveries_owner_select"
 on public.alert_deliveries for select
-using (auth.uid() = user_id);
+using ((select auth.uid()) = user_id);
 
 drop policy if exists "keyword_source_state_owner_select" on public.keyword_source_state;
+drop policy if exists "keyword_source_state_owner_all" on public.keyword_source_state;
 create policy "keyword_source_state_owner_select"
 on public.keyword_source_state for select
 using (
@@ -561,18 +592,18 @@ using (
     select 1
     from public.keywords k
     where k.id = keyword_source_state.keyword_id
-      and k.user_id = auth.uid()
+      and k.user_id = (select auth.uid())
   )
 );
 
 drop policy if exists "webhook_events_service_role_only" on public.webhook_events;
 create policy "webhook_events_service_role_only"
 on public.webhook_events for all
-using (auth.role() = 'service_role')
-with check (auth.role() = 'service_role');
+using ((select auth.role()) = 'service_role')
+with check ((select auth.role()) = 'service_role');
 
 drop policy if exists "api_rate_limits_service_role_only" on public.api_rate_limits;
 create policy "api_rate_limits_service_role_only"
 on public.api_rate_limits for all
-using (auth.role() = 'service_role')
-with check (auth.role() = 'service_role');
+using ((select auth.role()) = 'service_role')
+with check ((select auth.role()) = 'service_role');
