@@ -9,6 +9,7 @@ const useCases = [
     image: "/images/sketch_case_study.png",
     imageAlt: "A sketch of a startup founder checking brand mention notifications",
     reverse: false,
+    softenCanvas: true,
   },
   {
     badge: "For marketing teams",
@@ -18,6 +19,7 @@ const useCases = [
     image: "/images/sketch_service_analytics.png",
     imageAlt: "A sketch of a marketing manager analyzing brand data and growth",
     reverse: true,
+    softenCanvas: false,
   },
   {
     badge: "For developer advocates",
@@ -27,6 +29,7 @@ const useCases = [
     image: "/images/sketch_cta.png",
     imageAlt: "A sketch of a team building community on a large display",
     reverse: false,
+    softenCanvas: false,
   },
 ]
 
@@ -72,7 +75,9 @@ export function UseCases() {
                   alt={useCase.imageAlt}
                   width={520}
                   height={400}
-                  className="mx-auto w-full max-w-[420px] mix-blend-multiply"
+                  className={`mx-auto w-full max-w-[420px] mix-blend-multiply ${
+                    useCase.softenCanvas ? "image-blend-clean image-edge-fade" : ""
+                  }`}
                 />
               </div>
             </div>

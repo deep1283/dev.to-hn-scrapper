@@ -4,13 +4,6 @@ import { ArrowRight } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 
-const floatingBadges = [
-  { label: "Real-time alerts", position: "top-4 -right-4 md:top-6 md:-right-10" },
-  { label: "Priority refresh", position: "top-1/3 -right-2 md:-right-8" },
-  { label: "HN + Dev.to + GitHub", position: "bottom-16 -left-4 md:bottom-20 md:-left-8" },
-  { label: "Dashboard monitoring", position: "bottom-4 -right-2 md:bottom-6 md:-right-6" },
-]
-
 export function Hero() {
   return (
     <section className="relative overflow-hidden px-5 pb-20 pt-16 sm:px-6 md:pb-32 md:pt-24">
@@ -42,27 +35,17 @@ export function Hero() {
           {/* Subtle pedestal shadow */}
           <div className="absolute -bottom-6 left-1/2 h-8 w-3/4 -translate-x-1/2 rounded-[50%] bg-border/60 blur-xl" />
 
-          <div className="relative z-10 flex h-full w-full items-center justify-center lg:justify-end">
-            <div className="relative flex aspect-square w-full max-w-[340px] items-center justify-center bg-background sm:max-w-[380px]">
+          <div className="relative z-10 flex w-full items-center justify-center lg:justify-end">
+            <div className="relative flex w-full max-w-[340px] items-center justify-center overflow-hidden sm:max-w-[380px]">
               <Image
                 src="/images/sketch_hero.png"
                 alt="Signalze minimalist sketch showing a user checking a real-time brand mention feed"
                 width={380}
                 height={520}
                 priority
-                className="h-auto w-full mix-blend-multiply"
+                className="image-blend-darken h-auto w-full"
                 style={{ transform: "rotate(-2deg)" }}
               />
-
-              {/* Floating badges */}
-              {floatingBadges.map((badge) => (
-                <span
-                  key={badge.label}
-                  className={`absolute ${badge.position} hidden rounded-full border border-border/60 bg-card px-3 py-1.5 text-xs font-medium text-foreground shadow-sm sm:inline-block`}
-                >
-                  {badge.label}
-                </span>
-              ))}
             </div>
           </div>
         </div>
