@@ -111,6 +111,11 @@ export default function SettingsPage() {
   const activeBrands = useMemo(() => brandRows.filter((item) => item.is_active), [brandRows])
   const activeKeywords = useMemo(() => keywordRows.filter((item) => item.is_active), [keywordRows])
 
+  const overBrandCount =
+    planConfig.maxBrands === null ? 0 : Math.max(0, activeBrands.length - planConfig.maxBrands)
+  const overKeywordCount = Math.max(0, activeKeywords.length - planConfig.maxKeywords)
+  const isOverPlanLimits = overBrandCount > 0 || overKeywordCount > 0
+
   const brandLimitReached = planConfig.maxBrands !== null && activeBrands.length >= planConfig.maxBrands
   const keywordLimitReached = activeKeywords.length >= planConfig.maxKeywords
 
@@ -285,6 +290,54 @@ export default function SettingsPage() {
               Downgrade scheduled to {PLAN_CONFIG[pendingPlan].name} on {formatTime(pendingPlanEffectiveAt)}.
               Your current limits stay active until then.
             </p>
+          ) : null}
+          {isOverPlanLimits ? (
+            <div className="mt-4 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3">
+              <p className="text-sm font-medium text-destructive">
+                You&apos;re over your new plan limits. Remove extra items to continue.
+              </p>
+              <p className="mt-1 text-xs text-destructive/90">
+                {overBrandCount > 0 ? `${overBrandCount} brand${overBrandCount > 1 ? "s" : ""} over limit` : "Brand limit OK"}
+                {" · "}
+                {overKeywordCount > 0
+                  ? `${overKeywordCount} keyword${overKeywordCount > 1 ? "s" : ""} over limit`
+                  : "Keyword limit OK"}
+              </p>
+
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <div>
+                  <p className="text-xs font-medium text-foreground">Brands to adjust</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {activeBrands.map((brand) => (
+                      <button
+                        key={brand.id}
+                        onClick={() => void removeBrand(brand)}
+                        className="group rounded-full border border-border/40 bg-background px-3.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:text-destructive"
+                      >
+                        {brand.name} <span className="opacity-50 group-hover:opacity-100">×</span>
+                      </button>
+                    ))}
+                    {!activeBrands.length ? <span className="text-xs text-muted-foreground">No active brands.</span> : null}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-xs font-medium text-foreground">Keywords to adjust</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {activeKeywords.map((keyword) => (
+                      <button
+                        key={keyword.id}
+                        onClick={() => void removeKeyword(keyword)}
+                        className="group rounded-full border border-border/40 bg-background px-3.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:text-destructive"
+                      >
+                        {keyword.query} <span className="opacity-50 group-hover:opacity-100">×</span>
+                      </button>
+                    ))}
+                    {!activeKeywords.length ? <span className="text-xs text-muted-foreground">No active keywords.</span> : null}
+                  </div>
+                </div>
+              </div>
+            </div>
           ) : null}
 
           <div className="mt-8 flex max-w-4xl flex-col gap-10">
