@@ -6,8 +6,8 @@ const useCases = [
     title: "Startups",
     description:
       "Get notified the moment someone drops your name on Hacker News, Dev.to, or GitHub Discussions. Respond fast and turn organic mentions into customers.",
-    image: "/images/usecase-indie.jpg",
-    imageAlt: "A startup founder checking brand mention notifications",
+    image: "/images/sketch_case_study.png",
+    imageAlt: "A sketch of a startup founder checking brand mention notifications",
     reverse: false,
   },
   {
@@ -15,8 +15,8 @@ const useCases = [
     title: "Marketing teams",
     description:
       "Track campaign reach across communities. See where your product is discussed, analyze momentum, and measure share-of-voice against competitors.",
-    image: "/images/usecase-business.jpg",
-    imageAlt: "A marketing manager analyzing brand data on screen",
+    image: "/images/sketch_service_analytics.png",
+    imageAlt: "A sketch of a marketing manager analyzing brand data and growth",
     reverse: true,
   },
   {
@@ -24,8 +24,8 @@ const useCases = [
     title: "DevRel & community",
     description:
       "Stay on top of technical discussions, support requests, and product feedback across Hacker News, Dev.to, and GitHub Discussions.",
-    image: "/images/usecase-team.jpg",
-    imageAlt: "A team reviewing community data on a large display",
+    image: "/images/sketch_cta.png",
+    imageAlt: "A sketch of a team building community on a large display",
     reverse: false,
   },
 ]
@@ -72,7 +72,7 @@ export function UseCases() {
                   alt={useCase.imageAlt}
                   width={520}
                   height={400}
-                  className="rounded-2xl object-cover shadow-sm"
+                  className="mx-auto w-full max-w-[420px] mix-blend-multiply"
                 />
               </div>
             </div>

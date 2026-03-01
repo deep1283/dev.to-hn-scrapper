@@ -42,26 +42,28 @@ export function Hero() {
           {/* Subtle pedestal shadow */}
           <div className="absolute -bottom-6 left-1/2 h-8 w-3/4 -translate-x-1/2 rounded-[50%] bg-border/60 blur-xl" />
 
-          <div className="relative z-10">
-            <Image
-              src="/images/hero-phone-ntree.png"
-              alt="Signalze mobile app showing a real-time brand mention feed"
-              width={380}
-              height={520}
-              priority
-              className="h-auto w-full max-w-[340px] drop-shadow-2xl transition-transform hover:scale-[1.02] sm:max-w-[380px]"
-              style={{ transform: "rotate(-2deg)" }}
-            />
+          <div className="relative z-10 flex h-full w-full items-center justify-center lg:justify-end">
+            <div className="relative flex aspect-square w-full max-w-[340px] items-center justify-center bg-background sm:max-w-[380px]">
+              <Image
+                src="/images/sketch_hero.png"
+                alt="Signalze minimalist sketch showing a user checking a real-time brand mention feed"
+                width={380}
+                height={520}
+                priority
+                className="h-auto w-full mix-blend-multiply"
+                style={{ transform: "rotate(-2deg)" }}
+              />
 
-            {/* Floating badges */}
-            {floatingBadges.map((badge) => (
-              <span
-                key={badge.label}
-                className={`absolute ${badge.position} hidden rounded-full border border-border/60 bg-card px-3 py-1.5 text-xs font-medium text-foreground shadow-sm sm:inline-block`}
-              >
-                {badge.label}
-              </span>
-            ))}
+              {/* Floating badges */}
+              {floatingBadges.map((badge) => (
+                <span
+                  key={badge.label}
+                  className={`absolute ${badge.position} hidden rounded-full border border-border/60 bg-card px-3 py-1.5 text-xs font-medium text-foreground shadow-sm sm:inline-block`}
+                >
+                  {badge.label}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
       </div>

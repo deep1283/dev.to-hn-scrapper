@@ -6,23 +6,16 @@ export function HowItWorks() {
   return (
     <section id="how-it-works" className="px-6 py-20 md:py-32">
       <div className="mx-auto grid max-w-6xl items-center gap-12 md:grid-cols-2">
-        {/* Phone stack — CSS-based overlapping cards */}
         <div className="order-2 md:order-1">
-          <div className="relative mx-auto w-fit">
-            {/* Back card */}
-            <div className="absolute -left-6 top-4 h-[320px] w-[200px] rotate-[-8deg] rounded-3xl border border-border/60 bg-card shadow-sm sm:h-[380px] sm:w-[240px]" />
-            {/* Middle card */}
-            <div className="absolute -right-4 top-2 h-[320px] w-[200px] rotate-[6deg] rounded-3xl border border-border/60 bg-card shadow-sm sm:h-[380px] sm:w-[240px]" />
-            {/* Front card */}
-            <div className="relative z-10 mx-auto overflow-hidden rounded-3xl border border-border/60 bg-card shadow-lg">
-              <Image
-                src="/images/hero-phone-ntree.png"
-                alt="Signalze app showing mentions feed and notification settings"
-                width={240}
-                height={380}
-                className="h-[320px] w-[200px] object-cover object-top sm:h-[380px] sm:w-[240px]"
-              />
-            </div>
+          <div className="relative mx-auto flex justify-center">
+            <Image
+              src="/images/sketch_service_mentions.png"
+              alt="Signalze app sketch showing mentions feed and notification settings"
+              width={380}
+              height={520}
+              className="h-auto w-full max-w-[280px] mix-blend-multiply sm:max-w-[340px]"
+              style={{ transform: "rotate(2deg)" }}
+            />
           </div>
         </div>
 
