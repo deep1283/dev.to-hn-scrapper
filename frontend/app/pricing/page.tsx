@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useEffect, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 
 import { isTrialExpired } from "@/lib/client/billing"
 import { PLAN_CONFIG, type PlanId } from "@/lib/plans"
@@ -11,7 +11,17 @@ import { ensureProfile, getValidSession, type SessionData } from "@/lib/supabase
 const PLAN_ORDER: PlanId[] = ["starter_9", "growth_15"]
 const SOURCES = ["Hacker News", "Dev.to", "GitHub Discussions"]
 
-export default function PricingPage() {
+function PricingLoading() {
+  return (
+    <main className="min-h-screen bg-background px-4 py-8">
+      <div className="mx-auto w-full max-w-3xl rounded-2xl border border-border/60 bg-card p-6 text-sm text-muted-foreground">
+        Loading...
+      </div>
+    </main>
+  )
+}
+
+function PricingContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const manageMode = searchParams.get("manage") === "1"
@@ -64,13 +74,7 @@ export default function PricingPage() {
   }, [manageMode, router])
 
   if (!ready) {
-    return (
-      <main className="min-h-screen bg-background px-4 py-8">
-        <div className="mx-auto w-full max-w-3xl rounded-2xl border border-border/60 bg-card p-6 text-sm text-muted-foreground">
-          Loading...
-        </div>
-      </main>
-    )
+    return <PricingLoading />
   }
 
   return (
@@ -222,6 +226,14 @@ export default function PricingPage() {
         )}
       </div>
     </main>
+  )
+}
+
+export default function PricingPage() {
+  return (
+    <Suspense fallback={<PricingLoading />}>
+      <PricingContent />
+    </Suspense>
   )
 }
 

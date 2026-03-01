@@ -118,13 +118,14 @@ export async function signUpWithPassword(email: string, password: string): Promi
   return { user: payload.user }
 }
 
-export async function getProfile(_: SessionData): Promise<ProfileRow | null> {
+export async function getProfile(): Promise<ProfileRow | null> {
   const payload = await apiRequest<SessionPayload>("/api/auth/session", { method: "GET" })
   return payload.profile ?? null
 }
 
 export async function ensureProfile(session: SessionData): Promise<ProfileRow> {
-  const profile = await getProfile(session)
+  void session
+  const profile = await getProfile()
   if (!profile) {
     throw new Error("Unable to load profile.")
   }

@@ -123,6 +123,6 @@ export async function PUT(request: NextRequest) {
   return POST(request)
 }
 
-export async function PATCH(request: NextRequest) {
+export async function PATCH() {
   throw badRequest("Use POST to connect Slack updates.")
 }

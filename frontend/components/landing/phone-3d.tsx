@@ -64,27 +64,16 @@ function PhoneModel({ isMobile, reducedMotion }: PhoneModelProps) {
 }
 
 export function Phone3D() {
-  const [mounted, setMounted] = useState(false)
   const [reducedMotion, setReducedMotion] = useState(false)
   const isMobile = useIsMobile()
 
   useEffect(() => {
-    setMounted(true)
-
     const media = window.matchMedia("(prefers-reduced-motion: reduce)")
     const update = () => setReducedMotion(media.matches)
     update()
     media.addEventListener("change", update)
     return () => media.removeEventListener("change", update)
   }, [])
-
-  if (!mounted) {
-    return (
-      <div className="flex h-[360px] w-full max-w-[520px] animate-pulse items-center justify-center rounded-[2rem] bg-secondary/50 sm:h-[460px]">
-        <div className="text-muted-foreground font-medium">Loading 3D View...</div>
-      </div>
-    )
-  }
 
   const dpr: number | [number, number] = isMobile ? 1 : [1, 1.75]
 
