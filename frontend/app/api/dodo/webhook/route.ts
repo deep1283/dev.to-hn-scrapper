@@ -41,6 +41,8 @@ type ProfileSnapshot = {
   id: string
   email: string | null
   plan_tier: "starter_9" | "growth_15"
+  pending_plan_tier: "starter_9" | "growth_15" | null
+  pending_plan_effective_at: string | null
   billing_mode: "trial" | "paid" | null
   plan_selected_at: string | null
   trial_started_at: string | null
@@ -194,6 +196,11 @@ function inferPlanId(payload: DodoEvent): "starter_9" | "growth_15" {
   return parsePlanId("starter_9")
 }
 
+const PLAN_RANK: Record<"starter_9" | "growth_15", number> = {
+  starter_9: 1,
+  growth_15: 2,
+}
+
 function getUserId(payload: DodoEvent): string | null {
   const metadata = getMetadata(payload)
   const candidate = metadata.userId ?? metadata.user_id ?? metadata.supabase_user_id
@@ -267,7 +274,26 @@ async function getProfileByFilter(
   serviceRoleKey: string,
   filter: string,
 ): Promise<ProfileSnapshot | null> {
-  const response = await fetch(
+  const primary = await fetch(
+    `${supabaseUrl}/rest/v1/profiles?${filter}&select=id,email,plan_tier,pending_plan_tier,pending_plan_effective_at,billing_mode,plan_selected_at,trial_started_at,trial_ends_at&limit=1`,
+    {
+      method: "GET",
+      headers: headersForServiceRole(serviceRoleKey),
+      cache: "no-store",
+    },
+  )
+
+  if (primary.ok) {
+    const rows = (await primary.json().catch(() => [])) as ProfileSnapshot[]
+    return rows[0] ?? null
+  }
+
+  const primaryError = await primary.text().catch(() => "")
+  if (!primaryError.toLowerCase().includes("pending_plan_tier")) {
+    throw new Error(`Supabase profile fetch failed (${primary.status})`)
+  }
+
+  const fallback = await fetch(
     `${supabaseUrl}/rest/v1/profiles?${filter}&select=id,email,plan_tier,billing_mode,plan_selected_at,trial_started_at,trial_ends_at&limit=1`,
     {
       method: "GET",
@@ -276,12 +302,23 @@ async function getProfileByFilter(
     },
   )
 
-  if (!response.ok) {
-    throw new Error(`Supabase profile fetch failed (${response.status})`)
+  if (!fallback.ok) {
+    throw new Error(`Supabase profile fetch failed (${fallback.status})`)
   }
 
-  const rows = (await response.json().catch(() => [])) as ProfileSnapshot[]
-  return rows[0] ?? null
+  const rows = (await fallback.json().catch(() => [])) as Array<
+    Omit<ProfileSnapshot, "pending_plan_tier" | "pending_plan_effective_at">
+  >
+  const row = rows[0]
+  if (!row) {
+    return null
+  }
+
+  return {
+    ...row,
+    pending_plan_tier: null,
+    pending_plan_effective_at: null,
+  }
 }
 
 async function resolveTargetProfile(
@@ -314,14 +351,49 @@ async function resolveTargetProfile(
 
 function buildProfilePatch(existing: ProfileSnapshot, payload: DodoEvent, eventType: string, nowIso: string): Record<string, unknown> {
   const planId = inferPlanId(payload)
+  const isUpgrade = PLAN_RANK[planId] > PLAN_RANK[existing.plan_tier]
+  const isDowngrade = PLAN_RANK[planId] < PLAN_RANK[existing.plan_tier]
   const checkoutBillingMode = inferBillingMode(payload)
   const checkoutTrialDays = inferTrialDays(payload)
   const isPaidEvent =
     eventType.includes("payment.succeeded") || eventType.includes("subscription.renewed") || eventType.includes("invoice.paid")
 
+  const pendingEffectiveAtMs = existing.pending_plan_effective_at ? new Date(existing.pending_plan_effective_at).getTime() : NaN
+  const hasFuturePendingDowngrade =
+    existing.pending_plan_tier !== null &&
+    PLAN_RANK[existing.pending_plan_tier] < PLAN_RANK[existing.plan_tier] &&
+    Number.isFinite(pendingEffectiveAtMs) &&
+    pendingEffectiveAtMs > Date.now()
+
+  if (hasFuturePendingDowngrade && isDowngrade) {
+    return {
+      plan_tier: existing.plan_tier,
+      pending_plan_tier: existing.pending_plan_tier,
+      pending_plan_effective_at: existing.pending_plan_effective_at,
+      plan_selected_at: existing.plan_selected_at ?? nowIso,
+      billing_mode: "paid",
+      trial_started_at: null,
+      trial_ends_at: null,
+    }
+  }
+
+  if (isUpgrade) {
+    return {
+      plan_tier: planId,
+      pending_plan_tier: null,
+      pending_plan_effective_at: null,
+      plan_selected_at: existing.plan_selected_at ?? nowIso,
+      billing_mode: "paid",
+      trial_started_at: null,
+      trial_ends_at: null,
+    }
+  }
+
   if (existing.billing_mode === "paid" && !isPaidEvent) {
     return {
       plan_tier: planId,
+      pending_plan_tier: null,
+      pending_plan_effective_at: null,
       plan_selected_at: existing.plan_selected_at ?? nowIso,
       billing_mode: "paid",
       trial_started_at: null,
@@ -332,6 +404,8 @@ function buildProfilePatch(existing: ProfileSnapshot, payload: DodoEvent, eventT
   if (isPaidEvent) {
     return {
       plan_tier: planId,
+      pending_plan_tier: null,
+      pending_plan_effective_at: null,
       plan_selected_at: existing.plan_selected_at ?? nowIso,
       billing_mode: "paid",
       trial_started_at: null,
@@ -343,6 +417,8 @@ function buildProfilePatch(existing: ProfileSnapshot, payload: DodoEvent, eventT
     if (existing.trial_started_at && existing.trial_ends_at) {
       return {
         plan_tier: planId,
+        pending_plan_tier: null,
+        pending_plan_effective_at: null,
         plan_selected_at: existing.plan_selected_at ?? nowIso,
         billing_mode: "trial",
         trial_started_at: existing.trial_started_at,
@@ -352,6 +428,8 @@ function buildProfilePatch(existing: ProfileSnapshot, payload: DodoEvent, eventT
 
     return {
       plan_tier: planId,
+      pending_plan_tier: null,
+      pending_plan_effective_at: null,
       plan_selected_at: existing.plan_selected_at ?? nowIso,
       billing_mode: "trial",
       trial_started_at: nowIso,
@@ -361,6 +439,8 @@ function buildProfilePatch(existing: ProfileSnapshot, payload: DodoEvent, eventT
 
   return {
     plan_tier: planId,
+    pending_plan_tier: null,
+    pending_plan_effective_at: null,
     plan_selected_at: existing.plan_selected_at ?? nowIso,
     billing_mode: "paid",
     trial_started_at: null,

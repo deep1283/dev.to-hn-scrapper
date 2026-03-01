@@ -4,44 +4,45 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: #f5f3ed;
+  --background: #f7f5ef;
   --foreground: #1a1a1a;
   --card: #ffffff;
   --card-foreground: #1a1a1a;
   --popover: #ffffff;
   --popover-foreground: #1a1a1a;
-  --primary: #4a5a2b;
+  --primary: #3d4f1e;
   --primary-foreground: #ffffff;
-  --secondary: #eceadf;
+  --secondary: #eeeadf;
   --secondary-foreground: #1a1a1a;
   --muted: #e8e5d8;
-  --muted-foreground: #6b6b6b;
-  --accent: #c8e24e;
+  --muted-foreground: #7a7a7a;
+  --accent: #c5e04a;
   --accent-foreground: #1a1a1a;
   --destructive: #dc2626;
   --destructive-foreground: #ffffff;
-  --border: #ddd9c8;
-  --input: #ddd9c8;
-  --ring: #4a5a2b;
-  --chart-1: #4a5a2b;
-  --chart-2: #c8e24e;
+  --border: #e2dfd2;
+  --input: #e2dfd2;
+  --ring: #3d4f1e;
+  --chart-1: #3d4f1e;
+  --chart-2: #c5e04a;
   --chart-3: #8b9a5e;
   --chart-4: #d4cf9e;
   --chart-5: #6b7a3b;
   --radius: 0.625rem;
-  --sidebar: #f5f3ed;
+  --sidebar: #f7f5ef;
   --sidebar-foreground: #1a1a1a;
-  --sidebar-primary: #4a5a2b;
+  --sidebar-primary: #3d4f1e;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #eceadf;
+  --sidebar-accent: #eeeadf;
   --sidebar-accent-foreground: #1a1a1a;
-  --sidebar-border: #ddd9c8;
-  --sidebar-ring: #4a5a2b;
+  --sidebar-border: #e2dfd2;
+  --sidebar-ring: #3d4f1e;
 }
 
 @theme inline {
   --font-sans: var(--font-sans), 'Inter', sans-serif;
-  --font-serif: var(--font-serif), 'DM Serif Display', serif;
+  --font-serif: var(--font-serif), 'Playfair Display', serif;
+  --font-handwriting: var(--font-handwriting), 'Caveat', cursive;
   --font-mono: 'Geist Mono', 'Geist Mono Fallback';
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -85,7 +86,91 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* Handwriting accent utilities */
+.font-handwriting {
+  font-family: var(--font-handwriting);
+}
+
+/* Subtle squiggly underline for accent text */
+.squiggly-underline {
+  text-decoration: underline;
+  text-decoration-style: wavy;
+  text-decoration-color: var(--accent);
+  text-underline-offset: 4px;
+  text-decoration-thickness: 1.5px;
+}
+
+@keyframes orbit-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes orbit-counter {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+.orbit-spin {
+  animation-name: orbit-spin;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+.orbit-counter {
+  animation-name: orbit-counter;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+.orbit-ring {
+  height: calc(var(--orbit-radius) * 2);
+  width: calc(var(--orbit-radius) * 2);
+  border-radius: 9999px;
+}
+
+.orbit-r-mercury {
+  --orbit-radius: 92px;
+}
+
+.orbit-r-earth {
+  --orbit-radius: 128px;
+}
+
+.orbit-r-jupiter {
+  --orbit-radius: 156px;
+}
+
+@media (min-width: 768px) {
+  .orbit-r-mercury {
+    --orbit-radius: 112px;
+  }
+
+  .orbit-r-earth {
+    --orbit-radius: 156px;
+  }
+
+  .orbit-r-jupiter {
+    --orbit-radius: 188px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orbit-spin,
+  .orbit-counter {
+    animation: none !important;
   }
 }
