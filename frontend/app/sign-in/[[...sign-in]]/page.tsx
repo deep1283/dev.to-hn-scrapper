@@ -76,7 +76,6 @@ export default function SignInPage() {
 
   const redirectAfterAuth = useMemo(() => {
     const params = new URLSearchParams()
-    params.set("clerk_done", "1")
 
     if (next && next.startsWith("/")) {
       params.set("next", next)
@@ -86,7 +85,7 @@ export default function SignInPage() {
       params.set("plan", plan)
     }
 
-    return `/login?${params.toString()}`
+    return params.toString() ? `/auth/complete?${params.toString()}` : "/auth/complete"
   }, [next, plan])
 
   async function postPreflight<T>(url: string, body: Record<string, unknown>): Promise<T> {
@@ -125,8 +124,6 @@ export default function SignInPage() {
           strategy: "oauth_google",
           redirectUrl: "/sign-in/sso-callback",
           redirectUrlComplete: redirectAfterAuth,
-          continueSignIn: true,
-          continueSignUp: true,
         }),
         AUTH_PROVIDER_TIMEOUT_MS,
       )

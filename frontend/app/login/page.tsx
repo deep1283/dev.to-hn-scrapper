@@ -115,7 +115,6 @@ function LoginForm() {
 
   const planParam = searchParams.get("plan")
   const isCheckoutReturn = searchParams.get("checkout") === "return"
-  const clerkDone = searchParams.get("clerk_done") === "1"
   const preSelectedPlan = !isCheckoutReturn && isPlanId(planParam) ? planParam : null
   const safeNext = getSafeNext(searchParams.get("next"))
 
@@ -129,7 +128,7 @@ function LoginForm() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   useEffect(() => {
-    if (hasClerk && !clerkDone) {
+    if (hasClerk) {
       router.replace(`/sign-in${window.location.search}`)
       return
     }
@@ -172,7 +171,7 @@ function LoginForm() {
     }
 
     void bootstrap()
-  }, [clerkDone, preSelectedPlan, router, safeNext])
+  }, [preSelectedPlan, router, safeNext])
 
   async function handleSendMagicLink(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()

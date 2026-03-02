@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server"
-import { auth as clerkAuth } from "@clerk/nextjs/server"
+import { auth as clerkAuth, clerkClient } from "@clerk/nextjs/server"
 
 import { ensureActiveEntitlement } from "@/lib/server/validation"
 import { ensureProfile } from "@/lib/server/supabase"
@@ -7,6 +7,41 @@ import { requireSession, type SessionResult } from "@/lib/server/session"
 
 function clerkConfigured(): boolean {
   return Boolean(process.env.CLERK_SECRET_KEY && process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)
+}
+
+function claimEmail(claims: Record<string, unknown> | undefined): string | undefined {
+  const direct = claims?.email
+  if (typeof direct === "string" && direct.trim()) {
+    return direct
+  }
+
+  const alt = claims?.email_address
+  if (typeof alt === "string" && alt.trim()) {
+    return alt
+  }
+
+  return undefined
+}
+
+async function resolveClerkEmail(userId: string, claims: Record<string, unknown> | undefined): Promise<string | undefined> {
+  const fromClaims = claimEmail(claims)
+  if (fromClaims) {
+    return fromClaims
+  }
+
+  try {
+    const client = await clerkClient()
+    const user = await client.users.getUser(userId)
+    const primaryEmail =
+      user.primaryEmailAddress?.emailAddress ??
+      user.emailAddresses.find((entry) => entry.id === user.primaryEmailAddressId)?.emailAddress ??
+      user.emailAddresses[0]?.emailAddress
+
+    return typeof primaryEmail === "string" && primaryEmail.trim() ? primaryEmail : undefined
+  } catch (error) {
+    console.warn("[authz] Unable to resolve Clerk user email.", error)
+    return undefined
+  }
 }
 
 async function tryClerkAuth() {
@@ -31,7 +66,7 @@ async function tryClerkAuth() {
   }
 
   const claims = clerk.sessionClaims as Record<string, unknown> | undefined
-  const email = typeof claims?.email === "string" ? claims.email : undefined
+  const email = await resolveClerkEmail(clerk.userId, claims)
 
   return {
     accessToken: token,
