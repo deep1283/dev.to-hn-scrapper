@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useEffect, useMemo, useRef, useState } from "react"
+import { Suspense, useEffect, useMemo, useRef, useState } from "react"
 
 import { isPlanId } from "@/lib/plans"
 
@@ -79,7 +79,7 @@ async function loadSessionWithRetry(): Promise<SessionPayload> {
   throw new Error("Unable to finish sign-in.")
 }
 
-export default function AuthCompletePage() {
+function AuthCompleteContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const didRun = useRef(false)
@@ -140,5 +140,21 @@ export default function AuthCompletePage() {
         Finishing sign-in...
       </div>
     </main>
+  )
+}
+
+export default function AuthCompletePage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="flex min-h-screen items-center justify-center bg-background px-4">
+          <div className="rounded-2xl border border-border/60 bg-card px-6 py-4 text-sm text-muted-foreground">
+            Finishing sign-in...
+          </div>
+        </main>
+      }
+    >
+      <AuthCompleteContent />
+    </Suspense>
   )
 }
