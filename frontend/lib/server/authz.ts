@@ -14,7 +14,7 @@ async function tryClerkAuth() {
     return null
   }
 
-  const clerk = clerkAuth()
+  const clerk = await clerkAuth()
   if (!clerk.userId) {
     return null
   }

@@ -108,6 +108,7 @@ export default function SignInPage() {
     if (!isLoaded || !signIn) {
       return
     }
+    const signInClient = signIn
 
     setError(null)
     setSuccessMessage(null)
@@ -116,7 +117,7 @@ export default function SignInPage() {
     try {
       await postPreflight("/api/auth/clerk/oauth/google/preflight", {})
       await withTimeout(
-        signIn.authenticateWithRedirect({
+        signInClient.authenticateWithRedirect({
           strategy: "oauth_google",
           redirectUrl: "/sign-in/sso-callback",
           redirectUrlComplete: redirectAfterAuth,
@@ -138,9 +139,12 @@ export default function SignInPage() {
   async function handleSendMagicLink(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    if (!isLoaded || !signIn || !signUp) {
+    if (!isLoaded || !signIn || !signUp || !setActive) {
       return
     }
+    const signInClient = signIn
+    const signUpClient = signUp
+    const setActiveClient = setActive
 
     const emailInput = email.trim().toLowerCase()
     if (!emailInput) {
@@ -158,12 +162,12 @@ export default function SignInPage() {
     const redirectUrl = `${protocol}//${host}/sign-in/verify?next=${encodeURIComponent(redirectAfterAuth)}`
 
     async function startSignInMagicLink() {
-      const { supportedFirstFactors } = await signIn.create({ identifier: normalizedEmail })
+      const { supportedFirstFactors } = await signInClient.create({ identifier: normalizedEmail })
       const emailLinkFactor = supportedFirstFactors?.find((factor) => factor.strategy === "email_link")
       if (!emailLinkFactor || !("emailAddressId" in emailLinkFactor) || !emailLinkFactor.emailAddressId) {
         throw new Error("Magic link is not enabled for this email sign-in flow.")
       }
-      const { startEmailLinkFlow } = signIn.createEmailLinkFlow()
+      const { startEmailLinkFlow } = signInClient.createEmailLinkFlow()
       const signInAttempt = await startEmailLinkFlow({
         emailAddressId: emailLinkFactor.emailAddressId,
         redirectUrl,
@@ -172,8 +176,8 @@ export default function SignInPage() {
     }
 
     async function startSignUpMagicLink() {
-      await signUp.create({ emailAddress: normalizedEmail })
-      const { startEmailLinkFlow } = signUp.createEmailLinkFlow()
+      await signUpClient.create({ emailAddress: normalizedEmail })
+      const { startEmailLinkFlow } = signUpClient.createEmailLinkFlow()
       const signUpAttempt = await startEmailLinkFlow({ redirectUrl })
       return signUpAttempt
     }
@@ -183,8 +187,8 @@ export default function SignInPage() {
 
     async function runMagicLinkFlow() {
       const signInAttempt = await startSignInMagicLink()
-      if (signInAttempt.status === "complete" && signInAttempt.createdSessionId && setActive) {
-        await setActive({ session: signInAttempt.createdSessionId })
+      if (signInAttempt.status === "complete" && signInAttempt.createdSessionId) {
+        await setActiveClient({ session: signInAttempt.createdSessionId })
         if (magicLinkAttemptRef.current === attemptId) {
           router.replace(redirectAfterAuth)
         }
@@ -231,8 +235,8 @@ export default function SignInPage() {
 
       try {
         const signUpAttempt = await withTimeout(startSignUpMagicLink(), AUTH_PROVIDER_TIMEOUT_MS)
-        if (signUpAttempt.status === "complete" && signUpAttempt.createdSessionId && setActive) {
-          await setActive({ session: signUpAttempt.createdSessionId })
+        if (signUpAttempt.status === "complete" && signUpAttempt.createdSessionId) {
+          await setActiveClient({ session: signUpAttempt.createdSessionId })
           if (magicLinkAttemptRef.current === attemptId) {
             router.replace(redirectAfterAuth)
           }
