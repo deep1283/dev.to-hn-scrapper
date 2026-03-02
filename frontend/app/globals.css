@@ -40,9 +40,9 @@
 }
 
 @theme inline {
-  --font-sans: var(--font-sans), 'Inter', sans-serif;
-  --font-serif: var(--font-serif), 'Playfair Display', serif;
-  --font-handwriting: var(--font-handwriting), 'Caveat', cursive;
+  --font-sans: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+  --font-serif: 'Playfair Display', Georgia, 'Times New Roman', serif;
+  --font-handwriting: 'Caveat', 'Bradley Hand', 'Comic Sans MS', cursive;
   --font-mono: 'Geist Mono', 'Geist Mono Fallback';
   --color-background: var(--background);
   --color-foreground: var(--foreground);

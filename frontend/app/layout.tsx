@@ -1,23 +1,7 @@
 import type { Metadata } from 'next'
 import { ClerkProvider } from "@clerk/nextjs"
-import { Playfair_Display, Inter, Caveat } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
-
-const playfair = Playfair_Display({ 
-  subsets: ['latin'],
-  variable: '--font-serif',
-})
-
-const inter = Inter({ 
-  subsets: ['latin'],
-  variable: '--font-sans',
-})
-
-const caveat = Caveat({
-  subsets: ['latin'],
-  variable: '--font-handwriting',
-})
 
 const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000').replace(/\/+$/, '')
 const metadataBase = new URL(appUrl)
@@ -96,7 +80,7 @@ export default function RootLayout({
 
   return (
     <html lang="en">
-      <body className={`${inter.variable} ${playfair.variable} ${caveat.variable} font-sans antialiased`}>
+      <body className="font-sans antialiased">
         {content}
         <Analytics />
       </body>
