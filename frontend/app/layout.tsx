@@ -3,7 +3,21 @@ import { ClerkProvider } from "@clerk/nextjs"
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 
-const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000').replace(/\/+$/, '')
+function resolveAppUrl(): string {
+  const raw = process.env.NEXT_PUBLIC_APP_URL?.trim()
+  if (!raw) {
+    return 'http://localhost:3000'
+  }
+
+  const withProtocol = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`
+  try {
+    return new URL(withProtocol).toString().replace(/\/+$/, '')
+  } catch {
+    return 'http://localhost:3000'
+  }
+}
+
+const appUrl = resolveAppUrl()
 const metadataBase = new URL(appUrl)
 const hasClerk = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)
 const defaultTitle = 'Signalze | Monitor HN, Dev.to, and GitHub Discussions'
