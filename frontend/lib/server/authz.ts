@@ -19,9 +19,15 @@ async function tryClerkAuth() {
     return null
   }
 
-  const token = (await clerk.getToken()) ?? (await clerk.getToken({ template: "supabase" }).catch(() => null))
+  const supabaseToken = await clerk.getToken({ template: "supabase" }).catch(() => null)
+  const serviceRoleToken = process.env.SUPABASE_SERVICE_ROLE_KEY ?? null
+  const token = supabaseToken ?? serviceRoleToken
   if (!token) {
     return null
+  }
+
+  if (!supabaseToken) {
+    console.warn("[authz] Missing Clerk 'supabase' token template. Falling back to service role token.")
   }
 
   const claims = clerk.sessionClaims as Record<string, unknown> | undefined
