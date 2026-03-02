@@ -170,6 +170,7 @@ function PricingContent() {
                     <>
                       <PricingFeature>Slack updates</PricingFeature>
                       <PricingFeature>Faster refresh</PricingFeature>
+                      <PricingFeature>X monitoring (coming soon)</PricingFeature>
                     </>
                   )}
                 </ul>
