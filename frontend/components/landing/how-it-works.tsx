@@ -3,6 +3,8 @@ import { ArrowRight } from "lucide-react"
 import Link from "next/link"
 import { Reveal } from "@/components/landing/reveal"
 
+const AUTH_ENTRY_PATH = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ? "/sign-in" : "/login"
+
 export function HowItWorks() {
   return (
     <section id="how-it-works" className="px-6 py-20 md:py-32">
@@ -31,7 +33,7 @@ export function HowItWorks() {
             Dev.to, and GitHub Discussions so you never miss a conversation.
           </p>
           <Link
-            href="/login"
+            href={AUTH_ENTRY_PATH}
             className="inline-flex w-fit items-center gap-2 rounded-full bg-accent px-6 py-3 text-sm font-semibold text-accent-foreground transition-all hover:brightness-95 active:scale-[0.98]"
           >
             Get started now <ArrowRight className="h-4 w-4" />

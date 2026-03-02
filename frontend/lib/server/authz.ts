@@ -91,13 +91,15 @@ export type AuthContext = {
 export async function requireAuth(request: NextRequest): Promise<AuthContext> {
   const clerkContext = await tryClerkAuth()
   if (clerkContext) {
+    const profile = await ensureProfile(clerkContext.accessToken, clerkContext.userId, clerkContext.email)
+
     return {
       sessionResult: null,
       accessToken: clerkContext.accessToken,
-      userId: clerkContext.userId,
+      userId: profile.id,
       email: clerkContext.email,
       user: {
-        id: clerkContext.userId,
+        id: profile.id,
         email: clerkContext.email,
       },
       provider: clerkContext.provider,

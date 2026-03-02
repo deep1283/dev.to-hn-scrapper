@@ -6,6 +6,8 @@ import { useEffect, useRef, useState } from "react"
 
 import { isPlanId } from "@/lib/plans"
 
+const AUTH_ENTRY_PATH = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ? "/sign-in" : "/login"
+
 type ExchangePayload = {
   nextRoute?: string
   profile?: {
@@ -170,7 +172,7 @@ export function AuthCallbackClient() {
           <h1 className="font-serif text-2xl text-foreground">Sign-in failed</h1>
           <p className="mt-2 text-sm text-muted-foreground">{error}</p>
           <Link
-            href="/login"
+            href={AUTH_ENTRY_PATH}
             className="mt-5 inline-flex h-10 items-center justify-center rounded-full bg-accent px-5 text-sm font-semibold text-accent-foreground"
           >
             Back to login

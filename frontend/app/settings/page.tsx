@@ -21,6 +21,8 @@ import {
   type SessionData,
 } from "@/lib/supabase-lite"
 
+const AUTH_ENTRY_PATH = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ? "/sign-in" : "/login"
+
 function cleanInput(input: string): string {
   return input.trim().replace(/\s+/g, " ")
 }
@@ -84,7 +86,7 @@ export default function SettingsPage() {
       try {
         const validSession = await getValidSession()
         if (!validSession) {
-          window.location.replace("/login")
+          window.location.replace(AUTH_ENTRY_PATH)
           return
         }
 
@@ -271,7 +273,7 @@ export default function SettingsPage() {
   async function handleLogout() {
     const clerk = (window as { Clerk?: { signOut?: (options?: { redirectUrl?: string }) => Promise<void> } }).Clerk
     if (clerk?.signOut) {
-      await clerk.signOut({ redirectUrl: "/login" })
+      await clerk.signOut({ redirectUrl: AUTH_ENTRY_PATH })
       return
     }
 
@@ -279,7 +281,7 @@ export default function SettingsPage() {
       method: "POST",
       credentials: "include",
     }).catch(() => undefined)
-    window.location.replace("/login")
+    window.location.replace(AUTH_ENTRY_PATH)
   }
 
   async function refreshSlackStatus() {

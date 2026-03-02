@@ -21,6 +21,8 @@ import {
   type KeywordRow,
 } from "@/lib/supabase-lite"
 
+const AUTH_ENTRY_PATH = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ? "/sign-in" : "/login"
+
 type Mention = {
   platform: ActivePlatform
   externalId: string
@@ -67,7 +69,7 @@ export default function DashboardPage() {
       try {
         const validSession = await getValidSession()
         if (!validSession) {
-          window.location.replace("/login")
+          window.location.replace(AUTH_ENTRY_PATH)
           return
         }
 
@@ -161,7 +163,7 @@ export default function DashboardPage() {
   async function handleLogout() {
     const clerk = (window as { Clerk?: { signOut?: (options?: { redirectUrl?: string }) => Promise<void> } }).Clerk
     if (clerk?.signOut) {
-      await clerk.signOut({ redirectUrl: "/login" })
+      await clerk.signOut({ redirectUrl: AUTH_ENTRY_PATH })
       return
     }
 
@@ -169,7 +171,7 @@ export default function DashboardPage() {
       method: "POST",
       credentials: "include",
     }).catch(() => undefined)
-    window.location.replace("/login")
+    window.location.replace(AUTH_ENTRY_PATH)
   }
 
   if (isLoading) {

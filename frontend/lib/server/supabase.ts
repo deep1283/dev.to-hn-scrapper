@@ -293,7 +293,9 @@ async function getProfileByEmail(accessToken: string, email: string): Promise<Pr
 
   try {
     const rows = await restRequest<ProfileRow[]>(
-      `/profiles?email=eq.${encodeURIComponent(normalized)}&select=${PROFILE_SELECT}&limit=1`,
+      `/profiles?email=eq.${encodeURIComponent(
+        normalized,
+      )}&select=${PROFILE_SELECT}&order=plan_selected_at.desc.nullslast,updated_at.desc,id.asc&limit=1`,
       accessToken,
     )
     return rows[0] ?? null
@@ -313,7 +315,7 @@ async function getProfileByEmail(accessToken: string, email: string): Promise<Pr
     >(
       `/profiles?email=eq.${encodeURIComponent(
         normalized,
-      )}&select=id,email,clerk_user_id,plan_tier,billing_mode,plan_selected_at,trial_started_at,trial_ends_at,onboarding_completed&limit=1`,
+      )}&select=id,email,clerk_user_id,plan_tier,billing_mode,plan_selected_at,trial_started_at,trial_ends_at,onboarding_completed&order=plan_selected_at.desc.nullslast,updated_at.desc,id.asc&limit=1`,
       accessToken,
     )
     const legacy = legacyRows[0]
@@ -362,33 +364,101 @@ async function applyPendingPlanIfDue(accessToken: string, userId: string, profil
   })
 }
 
+function resolvePrivilegedToken(accessToken: string): string | null {
+  const serviceRoleToken = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
+  if (!serviceRoleToken || serviceRoleToken === accessToken) {
+    return null
+  }
+  return serviceRoleToken
+}
+
+function profileStrength(profile: ProfileRow): number {
+  let score = 0
+  if (profile.plan_selected_at) {
+    score += 100
+  }
+  if (profile.billing_mode === "paid") {
+    score += 50
+  }
+  if (profile.onboarding_completed) {
+    score += 20
+  }
+  if (profile.trial_started_at) {
+    score += 10
+  }
+  if (profile.plan_tier === "growth_15") {
+    score += 2
+  }
+  return score
+}
+
+function shouldPreferEmailProfile(current: ProfileRow, candidate: ProfileRow): boolean {
+  return profileStrength(candidate) > profileStrength(current)
+}
+
+async function getProfileByEmailWithFallback(
+  accessToken: string,
+  email: string,
+  privilegedToken: string | null,
+): Promise<ProfileRow | null> {
+  const direct = await getProfileByEmail(accessToken, email)
+  if (direct || !privilegedToken) {
+    return direct
+  }
+  return getProfileByEmail(privilegedToken, email)
+}
+
 export async function ensureProfile(accessToken: string, userId: string, email?: string): Promise<ProfileRow> {
-  const existing = await getProfile(accessToken, userId)
+  const isSupabaseUserId = isUuid(userId)
+  const normalizedEmail = typeof email === "string" ? email.trim().toLowerCase() : undefined
+  const privilegedToken = resolvePrivilegedToken(accessToken)
+  const writeToken = privilegedToken ?? accessToken
+
+  let existing = await getProfile(accessToken, userId)
+  if (!existing && !isSupabaseUserId && privilegedToken) {
+    existing = await getProfile(privilegedToken, userId)
+  }
+
   if (existing) {
+    if (!isSupabaseUserId && normalizedEmail) {
+      const existingByEmail = await getProfileByEmailWithFallback(accessToken, normalizedEmail, privilegedToken)
+      if (existingByEmail && existingByEmail.id !== existing.id) {
+        if (existingByEmail.clerk_user_id && existingByEmail.clerk_user_id !== userId) {
+          throw new AppError(409, "This email is already linked to another account.")
+        }
+
+        if (shouldPreferEmailProfile(existing, existingByEmail)) {
+          await patchProfile(writeToken, existing.id, { clerk_user_id: null })
+          const linked = await patchProfile(writeToken, existingByEmail.id, {
+            clerk_user_id: userId,
+            email: normalizedEmail,
+          })
+          return applyPendingPlanIfDue(writeToken, linked.id, linked)
+        }
+      }
+    }
+
     return applyPendingPlanIfDue(accessToken, existing.id, existing)
   }
 
-  const isSupabaseUserId = isUuid(userId)
-  const normalizedEmail = typeof email === "string" ? email.trim().toLowerCase() : undefined
-
   // Clerk users that already exist in DB (from pre-Clerk auth) should keep their existing plan/profile.
   if (!isSupabaseUserId && normalizedEmail) {
-    const existingByEmail = await getProfileByEmail(accessToken, normalizedEmail)
+    const existingByEmail = await getProfileByEmailWithFallback(accessToken, normalizedEmail, privilegedToken)
     if (existingByEmail) {
       if (existingByEmail.clerk_user_id && existingByEmail.clerk_user_id !== userId) {
         throw new AppError(409, "This email is already linked to another account.")
       }
 
-      const linked = await patchProfile(accessToken, existingByEmail.id, {
+      const linked = await patchProfile(writeToken, existingByEmail.id, {
         clerk_user_id: userId,
         email: normalizedEmail,
       })
-      return applyPendingPlanIfDue(accessToken, linked.id, linked)
+      return applyPendingPlanIfDue(writeToken, linked.id, linked)
     }
   }
 
   const profileId = isSupabaseUserId ? userId : crypto.randomUUID()
-  await restRequest<ProfileRow[]>(`/profiles`, accessToken, {
+  await restRequest<ProfileRow[]>(`/profiles`, writeToken, {
     method: "POST",
     body: JSON.stringify([
       {
@@ -399,7 +469,7 @@ export async function ensureProfile(accessToken: string, userId: string, email?:
     ]),
   })
 
-  const created = await getProfile(accessToken, isSupabaseUserId ? profileId : userId)
+  const created = await getProfile(writeToken, isSupabaseUserId ? profileId : userId)
   if (!created) {
     throw new AppError(500, "Unable to initialize profile.", "Profile insert did not return a row.")
   }

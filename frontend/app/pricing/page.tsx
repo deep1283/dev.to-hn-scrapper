@@ -10,6 +10,7 @@ import { ensureProfile, getValidSession, type SessionData } from "@/lib/supabase
 
 const PLAN_ORDER: PlanId[] = ["starter_9", "growth_15"]
 const SOURCES = ["Hacker News", "Dev.to", "GitHub Discussions"]
+const AUTH_ENTRY_PATH = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ? "/sign-in" : "/login"
 
 function PricingLoading() {
   return (
@@ -39,7 +40,7 @@ function PricingContent() {
         const validSession = await getValidSession()
         if (!validSession) {
           if (manageMode) {
-            router.replace("/login")
+            router.replace(AUTH_ENTRY_PATH)
             return
           }
           setReady(true)
@@ -182,7 +183,7 @@ function PricingContent() {
                     </span>
                   ) : (
                     <Link
-                      href={session ? `/api/billing/change-plan?plan=${plan.id}` : "/login"}
+                      href={session ? `/api/billing/change-plan?plan=${plan.id}` : AUTH_ENTRY_PATH}
                       className={`mt-auto inline-flex h-12 w-full items-center justify-center rounded-full px-6 text-sm font-semibold transition-all active:scale-[0.98] ${
                         isPopular
                           ? "bg-accent text-accent-foreground hover:brightness-95"
@@ -194,7 +195,7 @@ function PricingContent() {
                   )
                 ) : (
                   <Link
-                    href={`/login?plan=${plan.id}`}
+                    href={`${AUTH_ENTRY_PATH}?plan=${plan.id}`}
                     className={`mt-auto inline-flex h-12 w-full items-center justify-center rounded-full px-6 text-sm font-semibold transition-all active:scale-[0.98] ${
                       isPopular
                         ? "bg-accent text-accent-foreground hover:brightness-95"
@@ -220,7 +221,7 @@ function PricingContent() {
         ) : (
           <p className="text-center text-sm text-muted-foreground">
             Already have an account?{" "}
-            <Link href="/login" className="font-medium text-foreground hover:underline">
+            <Link href={AUTH_ENTRY_PATH} className="font-medium text-foreground hover:underline">
               Log in
             </Link>
           </p>

@@ -5,6 +5,8 @@ import Image from "next/image"
 import Link from "next/link"
 import { Reveal } from "@/components/landing/reveal"
 
+const AUTH_ENTRY_PATH = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ? "/sign-in" : "/login"
+
 export function Hero() {
   return (
     <section className="relative overflow-hidden px-5 pb-20 pt-16 sm:px-6 md:pb-32 md:pt-24">
@@ -28,7 +30,7 @@ export function Hero() {
               Start tracking for free <ArrowRight className="h-4 w-4" />
             </Link>
             <Link
-              href="/login"
+              href={AUTH_ENTRY_PATH}
               className="inline-flex items-center justify-center rounded-full border border-border px-7 py-3.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
             >
               Log in

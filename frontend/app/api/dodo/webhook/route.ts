@@ -275,7 +275,7 @@ async function getProfileByFilter(
   filter: string,
 ): Promise<ProfileSnapshot | null> {
   const primary = await fetch(
-    `${supabaseUrl}/rest/v1/profiles?${filter}&select=id,email,plan_tier,pending_plan_tier,pending_plan_effective_at,billing_mode,plan_selected_at,trial_started_at,trial_ends_at&limit=1`,
+    `${supabaseUrl}/rest/v1/profiles?${filter}&select=id,email,plan_tier,pending_plan_tier,pending_plan_effective_at,billing_mode,plan_selected_at,trial_started_at,trial_ends_at&order=plan_selected_at.desc.nullslast,updated_at.desc,id.asc&limit=1`,
     {
       method: "GET",
       headers: headersForServiceRole(serviceRoleKey),
@@ -294,7 +294,7 @@ async function getProfileByFilter(
   }
 
   const fallback = await fetch(
-    `${supabaseUrl}/rest/v1/profiles?${filter}&select=id,email,plan_tier,billing_mode,plan_selected_at,trial_started_at,trial_ends_at&limit=1`,
+    `${supabaseUrl}/rest/v1/profiles?${filter}&select=id,email,plan_tier,billing_mode,plan_selected_at,trial_started_at,trial_ends_at&order=plan_selected_at.desc.nullslast,updated_at.desc,id.asc&limit=1`,
     {
       method: "GET",
       headers: headersForServiceRole(serviceRoleKey),
