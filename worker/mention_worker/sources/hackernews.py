@@ -26,7 +26,8 @@ class HackerNewsSource:
     def search(self, query: str, *, since: datetime, limit: int) -> list[MentionCandidate]:
         params = {
             "query": query,
-            "tags": "story,comment",
+            # Algolia requires grouped OR syntax for multiple tags.
+            "tags": "(story,comment)",
             "hitsPerPage": min(max(limit, 1), 100),
             "numericFilters": f"created_at_i>{int(since.timestamp())}",
         }

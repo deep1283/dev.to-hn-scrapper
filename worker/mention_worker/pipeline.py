@@ -112,88 +112,115 @@ class Worker:
         )
         stats["tasks_polled"] += len(tasks)
 
+        grouped_tasks: dict[tuple[str, str], list[tuple[Any, datetime]]] = defaultdict(list)
+        overlap_minutes = max(self.settings.overlap_minutes, 0)
+
         for task in tasks:
-            source_client = sources.get(task.source)
-            if source_client is None:
-                self.db.mark_source_task_error(
-                    conn,
-                    keyword_id=task.keyword_id,
-                    source=task.source,
-                    error="Source not enabled in worker",
-                    backoff_minutes=self.settings.poll_interval_minutes,
-                )
-                stats["task_errors"] += 1
-                continue
-
-            if self._source_daily_limit_reached(task.source, source_requests_today):
-                now = datetime.now(tz=timezone.utc)
-                self.db.mark_source_task_error(
-                    conn,
-                    keyword_id=task.keyword_id,
-                    source=task.source,
-                    error="Daily source request budget reached; deferred until UTC day rollover",
-                    backoff_minutes=self._minutes_until_utc_day_rollover(now),
-                )
-                stats["tasks_deferred_budget"] += 1
-                continue
-
             now = datetime.now(tz=timezone.utc)
             default_since = now - timedelta(days=7)
             since = task.last_checked_at or default_since
-            since = since - timedelta(minutes=max(self.settings.overlap_minutes, 0))
+            since = since - timedelta(minutes=overlap_minutes)
+            grouped_tasks[(task.source, self._query_group_key(task.query))].append((task, since))
+
+        for (source, _normalized_query), task_group in grouped_tasks.items():
+            source_client = sources.get(source)
+            representative_query = task_group[0][0].query
+
+            if source_client is None:
+                for task, _ in task_group:
+                    self.db.mark_source_task_error(
+                        conn,
+                        keyword_id=task.keyword_id,
+                        source=task.source,
+                        error="Source not enabled in worker",
+                        backoff_minutes=self.settings.poll_interval_minutes,
+                    )
+                stats["task_errors"] += len(task_group)
+                continue
+
+            if self._source_daily_limit_reached(source, source_requests_today):
+                now = datetime.now(tz=timezone.utc)
+                for task, _ in task_group:
+                    self.db.mark_source_task_error(
+                        conn,
+                        keyword_id=task.keyword_id,
+                        source=task.source,
+                        error="Daily source request budget reached; deferred until UTC day rollover",
+                        backoff_minutes=self._minutes_until_utc_day_rollover(now),
+                    )
+                stats["tasks_deferred_budget"] += len(task_group)
+                continue
+
+            group_since = min(since for _, since in task_group)
 
             try:
-                mentions = source_client.search(task.query, since=since, limit=self.settings.per_source_limit)
-                source_requests_today[task.source] = source_requests_today.get(task.source, 0) + 1
-                source_requests_run[task.source] = source_requests_run.get(task.source, 0) + 1
+                mentions = source_client.search(
+                    representative_query,
+                    since=group_since,
+                    limit=self.settings.per_source_limit,
+                )
+                source_requests_today[source] = source_requests_today.get(source, 0) + 1
+                source_requests_run[source] = source_requests_run.get(source, 0) + 1
                 stats["source_mentions_fetched"] += len(mentions)
 
+                mention_records: list[tuple[Any, int]] = []
                 for mention in mentions:
                     mention_id = self.db.upsert_mention(conn, mention)
+                    mention_records.append((mention, mention_id))
                     stats["mentions_upserted"] += 1
 
-                    inserted_match = self.db.insert_mention_match(
-                        conn,
-                        user_id=task.user_id,
-                        keyword_id=task.keyword_id,
-                        brand_id=task.brand_id,
-                        mention_id=mention_id,
-                        matched_query=task.query,
-                    )
-                    if not inserted_match:
-                        stats["matches_deduped"] += 1
-                        continue
+                checked_at = datetime.now(tz=timezone.utc)
+                for task, task_since in task_group:
+                    for mention, mention_id in mention_records:
+                        mention_published_at = mention.published_at
+                        if mention_published_at.tzinfo is None:
+                            mention_published_at = mention_published_at.replace(tzinfo=timezone.utc)
+                        if mention_published_at < task_since:
+                            continue
 
-                    stats["matches_created"] += 1
-                    inserted_alert = self.db.enqueue_alert(
-                        conn,
-                        user_id=task.user_id,
-                        keyword_id=task.keyword_id,
-                        mention_id=mention_id,
-                    )
-                    if inserted_alert:
-                        stats["alerts_enqueued"] += 1
-                    else:
-                        stats["alerts_deduped"] += 1
+                        inserted_match = self.db.insert_mention_match(
+                            conn,
+                            user_id=task.user_id,
+                            keyword_id=task.keyword_id,
+                            brand_id=task.brand_id,
+                            mention_id=mention_id,
+                            matched_query=task.query,
+                        )
+                        if not inserted_match:
+                            stats["matches_deduped"] += 1
+                            continue
 
-                self.db.mark_source_task_success(
-                    conn,
-                    keyword_id=task.keyword_id,
-                    source=task.source,
-                    checked_at=now,
-                    poll_interval_minutes=self._poll_interval_for_source(task.source),
-                )
-                stats["tasks_succeeded"] += 1
+                        stats["matches_created"] += 1
+                        inserted_alert = self.db.enqueue_alert(
+                            conn,
+                            user_id=task.user_id,
+                            keyword_id=task.keyword_id,
+                            mention_id=mention_id,
+                        )
+                        if inserted_alert:
+                            stats["alerts_enqueued"] += 1
+                        else:
+                            stats["alerts_deduped"] += 1
+
+                    self.db.mark_source_task_success(
+                        conn,
+                        keyword_id=task.keyword_id,
+                        source=task.source,
+                        checked_at=checked_at,
+                        poll_interval_minutes=self._poll_interval_for_source(task.source),
+                    )
+                    stats["tasks_succeeded"] += 1
             except Exception as exc:  # noqa: BLE001
                 conn.rollback()
-                self.db.mark_source_task_error(
-                    conn,
-                    keyword_id=task.keyword_id,
-                    source=task.source,
-                    error=str(exc),
-                    backoff_minutes=self._poll_interval_for_source(task.source),
-                )
-                stats["task_errors"] += 1
+                for task, _ in task_group:
+                    self.db.mark_source_task_error(
+                        conn,
+                        keyword_id=task.keyword_id,
+                        source=task.source,
+                        error=str(exc),
+                        backoff_minutes=self._poll_interval_for_source(task.source),
+                    )
+                stats["task_errors"] += len(task_group)
 
     def _process_alerts(self, conn, http_client: httpx.Client, stats: dict[str, Any]) -> None:
         alerts = self.db.fetch_pending_alerts(
@@ -248,6 +275,10 @@ class Worker:
         if limit is None:
             return False
         return source_requests_today.get(source, 0) >= limit
+
+    @staticmethod
+    def _query_group_key(query: str) -> str:
+        return " ".join(query.casefold().split())
 
     @staticmethod
     def _minutes_until_utc_day_rollover(now: datetime) -> int:

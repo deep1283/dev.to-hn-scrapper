@@ -83,6 +83,29 @@ function toIso(value: string | null | undefined): string {
   return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString()
 }
 
+function limitMentionsPerPlatform(mentions: Mention[], platforms: ActivePlatform[], perPlatformLimit: number): Mention[] {
+  const byPlatform = new Map<ActivePlatform, Mention[]>()
+  for (const platform of platforms) {
+    byPlatform.set(platform, [])
+  }
+
+  for (const mention of mentions) {
+    const bucket = byPlatform.get(mention.platform)
+    if (bucket) {
+      bucket.push(mention)
+    }
+  }
+
+  const selected: Mention[] = []
+  for (const platform of platforms) {
+    const bucket = byPlatform.get(platform) ?? []
+    selected.push(...bucket.slice(0, perPlatformLimit))
+  }
+
+  selected.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
+  return selected
+}
+
 export async function POST(request: NextRequest) {
   try {
     const auth = await requireEntitledAuth(request)
@@ -95,15 +118,16 @@ export async function POST(request: NextRequest) {
     const body = await parseJsonBody<MentionBody>(request)
     const platforms = parsePlatforms(body.platforms, 10)
 
-    const limit = Math.min(Math.max(Number(body.limit ?? 100), 10), 300)
+    const perPlatformLimit = Math.min(Math.max(Number(body.limit ?? 100), 10), 300)
     const platformFilter = `&mentions.platform=in.(${platforms.join(",")})`
+    const rowLimit = Math.min(perPlatformLimit * Math.max(platforms.length, 1) * 6, 3600)
 
     const rows = await restRequest<MentionMatchRow[]>(
       `/mention_matches?user_id=eq.${encodeURIComponent(
         auth.userId,
       )}&select=matched_query,mentions!inner(platform,external_id,url,title,body_excerpt,author,community,published_at)${platformFilter}&order=matched_at.desc&limit=${Math.min(
-        limit * 6,
-        1200,
+        rowLimit,
+        3600,
       )}`,
       auth.accessToken,
     )
@@ -140,12 +164,12 @@ export async function POST(request: NextRequest) {
 
     const mentions = Array.from(merged.values())
       .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
-      .slice(0, limit)
+    const independentMentions = limitMentionsPerPlatform(mentions, platforms, perPlatformLimit)
 
     const response = NextResponse.json({
       fetchedAt: new Date().toISOString(),
       sourceErrors: [],
-      mentions,
+      mentions: independentMentions,
     })
 
     return withSessionCookie(response, auth.sessionResult)
