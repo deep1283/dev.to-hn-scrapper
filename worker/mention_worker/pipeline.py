@@ -138,7 +138,7 @@ class Worker:
                 continue
 
             now = datetime.now(tz=timezone.utc)
-            default_since = now - timedelta(days=1)
+            default_since = now - timedelta(days=7)
             since = task.last_checked_at or default_since
             since = since - timedelta(minutes=max(self.settings.overlap_minutes, 0))
 

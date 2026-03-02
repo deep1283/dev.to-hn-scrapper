@@ -40,6 +40,8 @@ type MentionsApiResponse = {
   mentions: Mention[]
 }
 
+const HISTORY_DAYS = 7
+
 function formatTime(isoTime: string): string {
   const date = new Date(isoTime)
   if (Number.isNaN(date.getTime())) {
@@ -51,6 +53,25 @@ function formatTime(isoTime: string): string {
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
+  }).format(date)
+}
+
+function startOfLocalDay(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate())
+}
+
+function dayKey(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
+
+function formatDayHeading(date: Date): string {
+  return new Intl.DateTimeFormat("en-US", {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
   }).format(date)
 }
 
@@ -129,6 +150,58 @@ export default function DashboardPage() {
       byPlatform,
     }
   }, [mentions])
+
+  const mentionTimeline = useMemo(() => {
+    const now = new Date()
+    const todayStart = startOfLocalDay(now)
+    const cutoff = new Date(todayStart)
+    cutoff.setDate(cutoff.getDate() - HISTORY_DAYS)
+
+    const recent = filteredMentions.filter((mention) => {
+      const publishedAt = new Date(mention.publishedAt)
+      return !Number.isNaN(publishedAt.getTime()) && publishedAt >= cutoff
+    })
+
+    const today: Mention[] = []
+    const byDay = new Map<string, Mention[]>()
+
+    for (const mention of recent) {
+      const published = new Date(mention.publishedAt)
+      if (Number.isNaN(published.getTime())) {
+        continue
+      }
+
+      const key = dayKey(startOfLocalDay(published))
+      if (key === dayKey(todayStart)) {
+        today.push(mention)
+        continue
+      }
+
+      const bucket = byDay.get(key)
+      if (bucket) {
+        bucket.push(mention)
+      } else {
+        byDay.set(key, [mention])
+      }
+    }
+
+    const previousDays = Array.from({ length: HISTORY_DAYS }, (_, index) => {
+      const dayDate = new Date(todayStart)
+      dayDate.setDate(dayDate.getDate() - (index + 1))
+      const key = dayKey(dayDate)
+      return {
+        key,
+        label: formatDayHeading(dayDate),
+        mentions: byDay.get(key) ?? [],
+      }
+    })
+
+    return {
+      today,
+      previousDays,
+      hasAny: today.length > 0 || previousDays.some((item) => item.mentions.length > 0),
+    }
+  }, [filteredMentions])
 
   async function fetchMentions() {
     setError(null)
@@ -292,50 +365,37 @@ export default function DashboardPage() {
             ))}
           </div>
 
-          <div className="mt-5 grid gap-3 sm:grid-cols-2">
-            {filteredMentions.map((mention) => (
-              <article key={`${mention.platform}:${mention.externalId}`} className="rounded-xl border border-border/40 p-4">
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <span className="rounded-full border border-border/40 px-2.5 py-1 text-xs font-semibold text-foreground">
-                    {PLATFORM_LABELS[mention.platform]}
-                  </span>
-                  <span className="text-xs text-muted-foreground">{formatTime(mention.publishedAt)}</span>
+          <div className="mt-5 space-y-6">
+            <section className="rounded-2xl border border-border/50 bg-secondary/25 p-4">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Today</h3>
+              {mentionTimeline.today.length ? (
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  {mentionTimeline.today.map((mention) => (
+                    <MentionCard key={`${mention.platform}:${mention.externalId}`} mention={mention} />
+                  ))}
                 </div>
+              ) : (
+                <p className="mt-3 text-sm text-muted-foreground">No mentions today yet.</p>
+              )}
+            </section>
 
-                <a
-                  href={mention.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="line-clamp-2 text-base font-semibold text-foreground hover:underline"
-                >
-                  {mention.title}
-                </a>
-
-                <p className="mt-2 line-clamp-3 text-sm text-muted-foreground">{mention.excerpt || "No excerpt available."}</p>
-
-                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                  <span>{mention.community ?? "Unknown community"}</span>
-                  <span>•</span>
-                  <span>{mention.author ?? "Unknown author"}</span>
-                </div>
-
-                {mention.matchedTerms.length ? (
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    {mention.matchedTerms.map((term) => (
-                      <span
-                        key={term}
-                        className="max-w-full break-all rounded-full border border-border/40 px-2.5 py-0.5 text-[11px] font-medium text-foreground"
-                      >
-                        {term}
-                      </span>
+            {mentionTimeline.previousDays.map((day) => (
+              <section key={day.key} className="rounded-2xl border border-border/40 p-4">
+                <h3 className="text-sm font-semibold text-muted-foreground">{day.label}</h3>
+                {day.mentions.length ? (
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    {day.mentions.map((mention) => (
+                      <MentionCard key={`${mention.platform}:${mention.externalId}`} mention={mention} />
                     ))}
                   </div>
-                ) : null}
-              </article>
+                ) : (
+                  <p className="mt-3 text-sm text-muted-foreground">No mentions.</p>
+                )}
+              </section>
             ))}
           </div>
 
-          {!filteredMentions.length ? (
+          {!mentionTimeline.hasAny ? (
             <p className="mt-5 rounded-xl border border-dashed border-border/40 p-8 text-center text-sm text-muted-foreground">
               No mentions yet. Hit &quot;Refresh feed&quot; to pull latest mentions.
             </p>
@@ -381,5 +441,48 @@ function StatCard({
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className="mt-1 font-serif text-2xl text-foreground">{value}</p>
     </div>
+  )
+}
+
+function MentionCard({ mention }: { mention: Mention }) {
+  return (
+    <article className="rounded-xl border border-border/40 p-4">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <span className="rounded-full border border-border/40 px-2.5 py-1 text-xs font-semibold text-foreground">
+          {PLATFORM_LABELS[mention.platform]}
+        </span>
+        <span className="text-xs text-muted-foreground">{formatTime(mention.publishedAt)}</span>
+      </div>
+
+      <a
+        href={mention.url}
+        target="_blank"
+        rel="noreferrer"
+        className="line-clamp-2 text-base font-semibold text-foreground hover:underline"
+      >
+        {mention.title}
+      </a>
+
+      <p className="mt-2 line-clamp-3 text-sm text-muted-foreground">{mention.excerpt || "No excerpt available."}</p>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+        <span>{mention.community ?? "Unknown community"}</span>
+        <span>•</span>
+        <span>{mention.author ?? "Unknown author"}</span>
+      </div>
+
+      {mention.matchedTerms.length ? (
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {mention.matchedTerms.map((term) => (
+            <span
+              key={term}
+              className="max-w-full break-all rounded-full border border-border/40 px-2.5 py-0.5 text-[11px] font-medium text-foreground"
+            >
+              {term}
+            </span>
+          ))}
+        </div>
+      ) : null}
+    </article>
   )
 }
