@@ -39,3 +39,16 @@ class PendingAlert:
     query: str
     brand_name: str | None
     mention: MentionCandidate
+
+
+@dataclass
+class QueryCacheEntry:
+    source: str
+    normalized_query: str
+    last_fetched_at: datetime
+
+
+@dataclass
+class MentionRecord:
+    mention_id: int
+    published_at: datetime

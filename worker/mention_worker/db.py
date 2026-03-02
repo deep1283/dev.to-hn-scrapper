@@ -9,7 +9,7 @@ import psycopg
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 
-from mention_worker.models import MentionCandidate, PendingAlert, SourceTask
+from mention_worker.models import MentionCandidate, MentionRecord, PendingAlert, QueryCacheEntry, SourceTask
 
 
 class Database:
@@ -23,6 +23,28 @@ class Database:
             yield conn
         finally:
             conn.close()
+
+    @staticmethod
+    def ensure_runtime_schema(conn: psycopg.Connection[Any]) -> None:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                create table if not exists public.source_query_cache (
+                  source public.source_name not null,
+                  normalized_query text not null,
+                  last_fetched_at timestamptz not null,
+                  updated_at timestamptz not null default now(),
+                  primary key (source, normalized_query)
+                )
+                """
+            )
+            cur.execute(
+                """
+                create index if not exists source_query_cache_last_fetched_idx
+                  on public.source_query_cache(last_fetched_at desc)
+                """
+            )
+        conn.commit()
 
     @staticmethod
     def try_advisory_lock(conn: psycopg.Connection[Any], lock_key: int) -> bool:
@@ -155,6 +177,99 @@ class Database:
                 )
             )
         return tasks
+
+    @staticmethod
+    def fetch_query_cache_entries(
+        conn: psycopg.Connection[Any],
+        *,
+        keys: list[tuple[str, str]],
+    ) -> dict[tuple[str, str], QueryCacheEntry]:
+        if not keys:
+            return {}
+
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                select source::text as source, normalized_query, last_fetched_at
+                from public.source_query_cache
+                where (source::text, normalized_query) in (
+                  select source, normalized_query
+                  from unnest(%s::text[], %s::text[]) as t(source, normalized_query)
+                )
+                """,
+                ([source for source, _ in keys], [query for _, query in keys]),
+            )
+            rows = cur.fetchall() or []
+
+        entries: dict[tuple[str, str], QueryCacheEntry] = {}
+        for row in rows:
+            entry = QueryCacheEntry(
+                source=row["source"],
+                normalized_query=row["normalized_query"],
+                last_fetched_at=row["last_fetched_at"],
+            )
+            entries[(entry.source, entry.normalized_query)] = entry
+        return entries
+
+    @staticmethod
+    def upsert_query_cache_entry(
+        conn: psycopg.Connection[Any],
+        *,
+        source: str,
+        normalized_query: str,
+        fetched_at: datetime,
+    ) -> None:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                insert into public.source_query_cache (source, normalized_query, last_fetched_at, updated_at)
+                values (%s, %s, %s, now())
+                on conflict (source, normalized_query) do update
+                set last_fetched_at = excluded.last_fetched_at,
+                    updated_at = now()
+                """,
+                (source, normalized_query, fetched_at),
+            )
+
+    @staticmethod
+    def fetch_recent_mentions_for_query(
+        conn: psycopg.Connection[Any],
+        *,
+        source: str,
+        normalized_query: str,
+        since: datetime,
+        limit: int,
+    ) -> list[MentionRecord]:
+        if limit <= 0:
+            return []
+        like_pattern = f"%{Database._escape_like(normalized_query.casefold())}%"
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                select id, published_at
+                from public.mentions
+                where platform::text = %s
+                  and published_at >= %s
+                  and (
+                    lower(coalesce(title, '')) like %s escape '\\'
+                    or lower(coalesce(body_excerpt, '')) like %s escape '\\'
+                    or lower(coalesce(author, '')) like %s escape '\\'
+                    or lower(coalesce(community, '')) like %s escape '\\'
+                  )
+                order by published_at desc
+                limit %s
+                """,
+                (source, since, like_pattern, like_pattern, like_pattern, like_pattern, limit),
+            )
+            rows = cur.fetchall() or []
+
+        return [
+            MentionRecord(
+                mention_id=row["id"],
+                published_at=row["published_at"],
+            )
+            for row in rows
+        ]
 
     @staticmethod
     def mark_source_task_success(
@@ -413,3 +528,25 @@ class Database:
                 (final_status, retry_count, next_attempt_at, error[:800], alert_id),
             )
         conn.commit()
+
+    @staticmethod
+    def cleanup_mentions_older_than(
+        conn: psycopg.Connection[Any],
+        *,
+        cutoff: datetime,
+    ) -> int:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                delete from public.mentions
+                where published_at < %s
+                """,
+                (cutoff,),
+            )
+            deleted = cur.rowcount or 0
+        conn.commit()
+        return int(deleted)
+
+    @staticmethod
+    def _escape_like(value: str) -> str:
+        return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")

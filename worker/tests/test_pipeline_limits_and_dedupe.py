@@ -28,7 +28,7 @@ if "psycopg.types.json" not in sys.modules:
     sys.modules["psycopg.types.json"] = json_stub
 
 from mention_worker.config import Settings
-from mention_worker.models import MentionCandidate, SourceTask
+from mention_worker.models import MentionCandidate, MentionRecord, QueryCacheEntry, SourceTask
 from mention_worker.pipeline import Worker
 from mention_worker.sources.registry import SOURCE_DEFINITIONS
 
@@ -90,7 +90,11 @@ def _make_settings(**overrides) -> Settings:
         "source_keys": source_keys,
         "source_enabled": source_enabled,
         "source_poll_interval_minutes": source_poll_interval_minutes,
+        "source_query_cache_ttl_minutes": {key: 15 for key in source_keys},
+        "source_incremental_lookback_hours": {key: 24 for key in source_keys},
         "source_daily_request_limit": source_daily_request_limit,
+        "mention_retention_days": 7,
+        "initial_backfill_days": 7,
     }
     values.update(overrides)
     return Settings(**values)
@@ -119,6 +123,9 @@ class _BudgetDB:
             }
         )
 
+    def fetch_query_cache_entries(self, *_args, **_kwargs):
+        return {}
+
 
 class _FixedSource:
     def __init__(self, mentions: list[MentionCandidate]) -> None:
@@ -128,14 +135,28 @@ class _FixedSource:
         return self._mentions
 
 
+class _NoFetchSource:
+    def search(self, *_args, **_kwargs):
+        raise AssertionError("search should not be called for fresh query cache")
+
+
 class _DedupeDB:
     def __init__(self, tasks: list[SourceTask]) -> None:
         self._tasks = tasks
         self.enqueue_calls = 0
         self.success_calls = 0
+        self.cached_mentions: list[MentionRecord] = [
+            MentionRecord(mention_id=42, published_at=datetime.now(tz=timezone.utc))
+        ]
 
     def fetch_due_source_tasks(self, *_args, **_kwargs):
         return self._tasks
+
+    def fetch_query_cache_entries(self, *_args, **_kwargs):
+        return {}
+
+    def fetch_recent_mentions_for_query(self, *_args, **_kwargs):
+        return self.cached_mentions
 
     def upsert_mention(self, *_args, **_kwargs):
         return 42
@@ -152,6 +173,45 @@ class _DedupeDB:
 
     def mark_source_task_error(self, *_args, **_kwargs):
         raise AssertionError("mark_source_task_error should not be called for success path")
+
+    def upsert_query_cache_entry(self, *_args, **_kwargs):
+        return None
+
+
+class _CacheReuseDB:
+    def __init__(self, tasks: list[SourceTask], mention_id: int) -> None:
+        self._tasks = tasks
+        self._mention_id = mention_id
+        self.success_calls = 0
+
+    def fetch_due_source_tasks(self, *_args, **_kwargs):
+        return self._tasks
+
+    def fetch_query_cache_entries(self, *_args, **_kwargs):
+        task = self._tasks[0]
+        key = (task.source, " ".join(task.query.casefold().split()))
+        return {
+            key: QueryCacheEntry(
+                source=task.source,
+                normalized_query=key[1],
+                last_fetched_at=datetime.now(tz=timezone.utc),
+            )
+        }
+
+    def fetch_recent_mentions_for_query(self, *_args, **_kwargs):
+        return [MentionRecord(mention_id=self._mention_id, published_at=datetime.now(tz=timezone.utc))]
+
+    def insert_mention_match(self, *_args, **_kwargs):
+        return True
+
+    def enqueue_alert(self, *_args, **_kwargs):
+        return False
+
+    def mark_source_task_success(self, *_args, **_kwargs):
+        self.success_calls += 1
+
+    def mark_source_task_error(self, *_args, **_kwargs):
+        raise AssertionError("mark_source_task_error should not be called for cache hit path")
 
 
 class WorkerPipelineTests(unittest.TestCase):
@@ -241,6 +301,41 @@ class WorkerPipelineTests(unittest.TestCase):
         self.assertEqual(stats["matches_deduped"], 1)
         self.assertEqual(stats.get("alerts_enqueued", 0), 0)
         self.assertEqual(fake_db.enqueue_calls, 0)
+        self.assertEqual(fake_db.success_calls, 1)
+
+    def test_fresh_query_cache_skips_source_fetch_and_reuses_db_mentions(self) -> None:
+        settings = _make_settings()
+        worker = Worker(settings)
+
+        task = SourceTask(
+            keyword_id=uuid4(),
+            user_id=uuid4(),
+            brand_id=None,
+            query="signalze",
+            source="github_discussions",
+            last_checked_at=None,
+        )
+
+        fake_db = _CacheReuseDB([task], mention_id=99)
+        worker.db = fake_db  # type: ignore[assignment]
+
+        stats: dict[str, int] = defaultdict(int)
+        source_requests_run: dict[str, int] = defaultdict(int)
+        source_requests_today: dict[str, int] = defaultdict(int)
+
+        worker._process_source_tasks(
+            conn=object(),
+            sources={"github_discussions": _NoFetchSource()},
+            stats=stats,
+            source_requests_run=source_requests_run,
+            source_requests_today=source_requests_today,
+        )
+
+        self.assertEqual(stats["tasks_polled"], 1)
+        self.assertEqual(stats["query_cache_hits"], 1)
+        self.assertEqual(stats["matches_created"], 1)
+        self.assertEqual(stats.get("source_mentions_fetched", 0), 0)
+        self.assertEqual(source_requests_run.get("github_discussions", 0), 0)
         self.assertEqual(fake_db.success_calls, 1)
 
 

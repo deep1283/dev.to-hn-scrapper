@@ -2,6 +2,12 @@
 
 This worker polls Hacker News, GitHub Discussions, and Dev.to for active tracking queries, deduplicates mentions, and sends Slack webhook alerts.
 
+Current fetch strategy:
+- Initial backfill per source+query: last 7 days (`INITIAL_BACKFILL_DAYS`).
+- Subsequent refresh: incremental window (default 24h) with overlap.
+- Query-level cache: repeated identical queries reuse cached DB mentions until per-source TTL expires.
+- Retention: mentions older than `MENTION_RETENTION_DAYS` are deleted each run.
+
 ## Source registry (plug-and-play setup)
 - Source metadata and adapter wiring are centralized in [`/Users/deepmishra/vscode/signalze/worker/mention_worker/sources/registry.py`](/Users/deepmishra/vscode/signalze/worker/mention_worker/sources/registry.py).
 - To add a future source (for example Google, Brave, Product Hunt):
@@ -28,7 +34,15 @@ Suggested env values:
 - `SOURCE_HN_POLL_INTERVAL_MINUTES=360` (6 hours)
 - `SOURCE_DEVTO_POLL_INTERVAL_MINUTES=720` (12 hours)
 - `SOURCE_GITHUB_DISCUSSIONS_POLL_INTERVAL_MINUTES=360` (6 hours)
+- `SOURCE_HN_QUERY_CACHE_TTL_MINUTES=20`
+- `SOURCE_DEVTO_QUERY_CACHE_TTL_MINUTES=30`
+- `SOURCE_GITHUB_DISCUSSIONS_QUERY_CACHE_TTL_MINUTES=60`
+- `SOURCE_HN_INCREMENTAL_LOOKBACK_HOURS=24`
+- `SOURCE_DEVTO_INCREMENTAL_LOOKBACK_HOURS=24`
+- `SOURCE_GITHUB_DISCUSSIONS_INCREMENTAL_LOOKBACK_HOURS=24`
 - `POLL_INTERVAL_MINUTES=15` (worker can still run often; source intervals gate calls)
+- `MENTION_RETENTION_DAYS=7`
+- `INITIAL_BACKFILL_DAYS=7`
 - `SOURCE_REDDIT_ENABLED=false`
 - `SOURCE_GOOGLE_ENABLED=false`
 - `SOURCE_BRAVE_ENABLED=false`

@@ -9,6 +9,7 @@ import { restRequest } from "@/lib/server/supabase"
 import { withSessionCookie } from "@/lib/server/session"
 
 export const dynamic = "force-dynamic"
+const HISTORY_DAYS = 7
 
 type Mention = {
   platform: ActivePlatform
@@ -120,12 +121,16 @@ export async function POST(request: NextRequest) {
 
     const perPlatformLimit = Math.min(Math.max(Number(body.limit ?? 100), 10), 300)
     const platformFilter = `&mentions.platform=in.(${platforms.join(",")})`
+    const cutoff = new Date()
+    cutoff.setUTCHours(0, 0, 0, 0)
+    cutoff.setUTCDate(cutoff.getUTCDate() - HISTORY_DAYS)
+    const timeFilter = `&mentions.published_at=gte.${encodeURIComponent(cutoff.toISOString())}`
     const rowLimit = Math.min(perPlatformLimit * Math.max(platforms.length, 1) * 6, 3600)
 
     const rows = await restRequest<MentionMatchRow[]>(
       `/mention_matches?user_id=eq.${encodeURIComponent(
         auth.userId,
-      )}&select=matched_query,mentions!inner(platform,external_id,url,title,body_excerpt,author,community,published_at)${platformFilter}&order=matched_at.desc&limit=${Math.min(
+      )}&select=matched_query,mentions!inner(platform,external_id,url,title,body_excerpt,author,community,published_at)${platformFilter}${timeFilter}&order=matched_at.desc&limit=${Math.min(
         rowLimit,
         3600,
       )}`,
