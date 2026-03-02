@@ -34,8 +34,9 @@ set max_brands = excluded.max_brands,
     updated_at = now();
 
 create table if not exists public.profiles (
-  id uuid primary key references auth.users(id) on delete cascade,
+  id uuid primary key default gen_random_uuid(),
   email text,
+  clerk_user_id text,
   plan_tier public.plan_tier not null default 'starter_9',
   billing_mode text check (billing_mode in ('trial', 'paid')),
   plan_selected_at timestamptz,
@@ -53,11 +54,17 @@ alter table public.profiles add column if not exists billing_mode text;
 alter table public.profiles add column if not exists plan_selected_at timestamptz;
 alter table public.profiles add column if not exists trial_started_at timestamptz;
 alter table public.profiles add column if not exists trial_ends_at timestamptz;
+alter table public.profiles add column if not exists clerk_user_id text;
 alter table public.profiles add column if not exists pending_plan_tier public.plan_tier;
 alter table public.profiles add column if not exists pending_plan_effective_at timestamptz;
 alter table public.profiles add column if not exists onboarding_completed boolean not null default false;
+alter table public.profiles drop constraint if exists profiles_id_fkey;
+alter table public.profiles alter column id set default gen_random_uuid();
 alter table public.profiles drop constraint if exists profiles_billing_mode_check;
 alter table public.profiles add constraint profiles_billing_mode_check check (billing_mode in ('trial', 'paid'));
+create unique index if not exists profiles_clerk_user_id_uq
+  on public.profiles(clerk_user_id)
+  where clerk_user_id is not null;
 
 create table if not exists public.brands (
   id uuid primary key default gen_random_uuid(),
@@ -479,6 +486,30 @@ begin
 end;
 $$;
 
+create or replace function public.requesting_user_id()
+returns text
+language sql
+stable
+as $$
+  select nullif((current_setting('request.jwt.claims', true)::jsonb ->> 'sub'), '')
+$$;
+
+create or replace function public.requesting_profile_id()
+returns uuid
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select p.id
+  from public.profiles p
+  where p.clerk_user_id = public.requesting_user_id()
+  limit 1
+$$;
+
+revoke all on function public.requesting_profile_id() from public, anon;
+grant execute on function public.requesting_profile_id() to authenticated, service_role;
+
 drop trigger if exists brand_system_keyword_insert on public.brands;
 create trigger brand_system_keyword_insert
 after insert on public.brands
@@ -515,30 +546,54 @@ using ((select auth.role()) in ('authenticated', 'service_role'));
 drop policy if exists "profiles_select_own" on public.profiles;
 create policy "profiles_select_own"
 on public.profiles for select
-using ((select auth.uid()) = id);
+using (
+  (select auth.uid()) = id
+  or clerk_user_id = public.requesting_user_id()
+);
 
 drop policy if exists "profiles_update_own" on public.profiles;
 create policy "profiles_update_own"
 on public.profiles for update
-using ((select auth.uid()) = id)
-with check ((select auth.uid()) = id);
+using (
+  (select auth.uid()) = id
+  or clerk_user_id = public.requesting_user_id()
+)
+with check (
+  (select auth.uid()) = id
+  or clerk_user_id = public.requesting_user_id()
+);
 
 drop policy if exists "profiles_insert_own" on public.profiles;
 create policy "profiles_insert_own"
 on public.profiles for insert
-with check ((select auth.uid()) = id);
+with check (
+  ((select auth.uid()) = id and clerk_user_id is null)
+  or clerk_user_id = public.requesting_user_id()
+);
 
 drop policy if exists "brands_owner_all" on public.brands;
 create policy "brands_owner_all"
 on public.brands for all
-using ((select auth.uid()) = user_id)
-with check ((select auth.uid()) = user_id);
+using (
+  user_id = (select auth.uid())
+  or user_id = public.requesting_profile_id()
+)
+with check (
+  user_id = (select auth.uid())
+  or user_id = public.requesting_profile_id()
+);
 
 drop policy if exists "keywords_owner_all" on public.keywords;
 create policy "keywords_owner_all"
 on public.keywords for all
-using ((select auth.uid()) = user_id)
-with check ((select auth.uid()) = user_id);
+using (
+  user_id = (select auth.uid())
+  or user_id = public.requesting_profile_id()
+)
+with check (
+  user_id = (select auth.uid())
+  or user_id = public.requesting_profile_id()
+);
 
 drop policy if exists "keyword_sources_owner_all" on public.keyword_sources;
 create policy "keyword_sources_owner_all"
@@ -548,7 +603,10 @@ using (
     select 1
     from public.keywords k
     where k.id = keyword_sources.keyword_id
-      and k.user_id = (select auth.uid())
+      and (
+        k.user_id = (select auth.uid())
+        or k.user_id = public.requesting_profile_id()
+      )
   )
 )
 with check (
@@ -556,7 +614,10 @@ with check (
     select 1
     from public.keywords k
     where k.id = keyword_sources.keyword_id
-      and k.user_id = (select auth.uid())
+      and (
+        k.user_id = (select auth.uid())
+        or k.user_id = public.requesting_profile_id()
+      )
   )
 );
 
@@ -568,20 +629,32 @@ using (
     select 1
     from public.mention_matches mm
     where mm.mention_id = mentions.id
-      and mm.user_id = (select auth.uid())
+      and (
+        mm.user_id = (select auth.uid())
+        or mm.user_id = public.requesting_profile_id()
+      )
   )
 );
 
 drop policy if exists "mention_matches_owner_all" on public.mention_matches;
 create policy "mention_matches_owner_all"
 on public.mention_matches for all
-using ((select auth.uid()) = user_id)
-with check ((select auth.uid()) = user_id);
+using (
+  user_id = (select auth.uid())
+  or user_id = public.requesting_profile_id()
+)
+with check (
+  user_id = (select auth.uid())
+  or user_id = public.requesting_profile_id()
+);
 
 drop policy if exists "alert_deliveries_owner_select" on public.alert_deliveries;
 create policy "alert_deliveries_owner_select"
 on public.alert_deliveries for select
-using ((select auth.uid()) = user_id);
+using (
+  user_id = (select auth.uid())
+  or user_id = public.requesting_profile_id()
+);
 
 drop policy if exists "keyword_source_state_owner_select" on public.keyword_source_state;
 drop policy if exists "keyword_source_state_owner_all" on public.keyword_source_state;
@@ -592,7 +665,10 @@ using (
     select 1
     from public.keywords k
     where k.id = keyword_source_state.keyword_id
-      and k.user_id = (select auth.uid())
+      and (
+        k.user_id = (select auth.uid())
+        or k.user_id = public.requesting_profile_id()
+      )
   )
 );
 

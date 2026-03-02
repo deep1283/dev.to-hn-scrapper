@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     const nextRoute = !auth.profile.onboarding_completed ? "/onboarding" : "/dashboard"
 
     const response = NextResponse.json({
-      user: auth.sessionResult.session.user,
+      user: auth.user,
       profile: auth.profile,
       brands,
       keywords,

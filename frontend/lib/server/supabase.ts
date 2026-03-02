@@ -29,6 +29,7 @@ export type ServerSession = {
 export type ProfileRow = {
   id: string
   email: string | null
+  clerk_user_id: string | null
   plan_tier: PlanTier
   pending_plan_tier: PlanTier | null
   pending_plan_effective_at: string | null
@@ -191,12 +192,17 @@ export async function getAuthUser(accessToken: string): Promise<{ id: string; em
   }
 }
 
-export async function getProfile(accessToken: string, userId: string): Promise<ProfileRow | null> {
+const PROFILE_SELECT =
+  "id,email,clerk_user_id,plan_tier,pending_plan_tier,pending_plan_effective_at,billing_mode,plan_selected_at,trial_started_at,trial_ends_at,onboarding_completed"
+
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+}
+
+async function getProfileById(accessToken: string, userId: string): Promise<ProfileRow | null> {
   try {
     const rows = await restRequest<ProfileRow[]>(
-      `/profiles?id=eq.${encodeURIComponent(
-        userId,
-      )}&select=id,email,plan_tier,pending_plan_tier,pending_plan_effective_at,billing_mode,plan_selected_at,trial_started_at,trial_ends_at,onboarding_completed`,
+      `/profiles?id=eq.${encodeURIComponent(userId)}&select=${PROFILE_SELECT}`,
       accessToken,
     )
     return rows[0] ?? null
@@ -208,7 +214,8 @@ export async function getProfile(accessToken: string, userId: string): Promise<P
 
     const legacyRows = await restRequest<
       Array<
-        Omit<ProfileRow, "pending_plan_tier" | "pending_plan_effective_at"> & {
+        Omit<ProfileRow, "clerk_user_id" | "pending_plan_tier" | "pending_plan_effective_at"> & {
+          clerk_user_id?: null
           pending_plan_tier?: null
           pending_plan_effective_at?: null
         }
@@ -225,10 +232,65 @@ export async function getProfile(accessToken: string, userId: string): Promise<P
     }
     return {
       ...legacy,
+      clerk_user_id: null,
       pending_plan_tier: null,
       pending_plan_effective_at: null,
     }
   }
+}
+
+async function getProfileByClerkUserId(accessToken: string, clerkUserId: string): Promise<ProfileRow | null> {
+  try {
+    const rows = await restRequest<ProfileRow[]>(
+      `/profiles?clerk_user_id=eq.${encodeURIComponent(clerkUserId)}&select=${PROFILE_SELECT}&limit=1`,
+      accessToken,
+    )
+    return rows[0] ?? null
+  } catch (error) {
+    const details = error instanceof Error ? error.message.toLowerCase() : ""
+    if (details.includes("clerk_user_id")) {
+      throw new AppError(
+        500,
+        "Authentication setup is incomplete. Please contact support.",
+        "profiles.clerk_user_id is missing. Run Clerk migration.",
+      )
+    }
+
+    if (!details.includes("pending_plan_tier")) {
+      throw error
+    }
+
+    const legacyRows = await restRequest<
+      Array<
+        Omit<ProfileRow, "pending_plan_tier" | "pending_plan_effective_at"> & {
+          pending_plan_tier?: null
+          pending_plan_effective_at?: null
+        }
+      >
+    >(
+      `/profiles?clerk_user_id=eq.${encodeURIComponent(
+        clerkUserId,
+      )}&select=id,email,clerk_user_id,plan_tier,billing_mode,plan_selected_at,trial_started_at,trial_ends_at,onboarding_completed&limit=1`,
+      accessToken,
+    )
+    const legacy = legacyRows[0]
+    if (!legacy) {
+      return null
+    }
+    return {
+      ...legacy,
+      pending_plan_tier: null,
+      pending_plan_effective_at: null,
+    }
+  }
+}
+
+export async function getProfile(accessToken: string, userId: string): Promise<ProfileRow | null> {
+  if (isUuid(userId)) {
+    return getProfileById(accessToken, userId)
+  }
+
+  return getProfileByClerkUserId(accessToken, userId)
 }
 
 async function applyPendingPlanIfDue(accessToken: string, userId: string, profile: ProfileRow): Promise<ProfileRow> {
@@ -260,15 +322,23 @@ async function applyPendingPlanIfDue(accessToken: string, userId: string, profil
 export async function ensureProfile(accessToken: string, userId: string, email?: string): Promise<ProfileRow> {
   const existing = await getProfile(accessToken, userId)
   if (existing) {
-    return applyPendingPlanIfDue(accessToken, userId, existing)
+    return applyPendingPlanIfDue(accessToken, existing.id, existing)
   }
 
+  const isSupabaseUserId = isUuid(userId)
+  const profileId = isSupabaseUserId ? userId : crypto.randomUUID()
   await restRequest<ProfileRow[]>(`/profiles`, accessToken, {
     method: "POST",
-    body: JSON.stringify([{ id: userId, email: email ?? null }]),
+    body: JSON.stringify([
+      {
+        id: profileId,
+        email: email ?? null,
+        clerk_user_id: isSupabaseUserId ? null : userId,
+      },
+    ]),
   })
 
-  const created = await getProfile(accessToken, userId)
+  const created = await getProfile(accessToken, isSupabaseUserId ? profileId : userId)
   if (!created) {
     throw new AppError(500, "Unable to initialize profile.", "Profile insert did not return a row.")
   }

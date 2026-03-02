@@ -6,7 +6,7 @@ import { getAuthUser, refreshSession, type ServerSession } from "@/lib/server/su
 const SESSION_COOKIE_NAME = "signalze_session"
 const REFRESH_GRACE_MS = 60_000
 
-type SessionResult = {
+export type SessionResult = {
   session: ServerSession
   refreshed: boolean
 }
@@ -102,8 +102,8 @@ export async function requireSession(request: NextRequest): Promise<SessionResul
   }
 }
 
-export function withSessionCookie(response: NextResponse, sessionResult: SessionResult): NextResponse {
-  if (sessionResult.refreshed) {
+export function withSessionCookie(response: NextResponse, sessionResult?: SessionResult | null): NextResponse {
+  if (sessionResult?.refreshed) {
     addSessionCookie(response, sessionResult.session)
   }
   return response

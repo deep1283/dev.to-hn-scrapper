@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
           : "/dashboard"
 
     const response = NextResponse.json({
-      user: auth.sessionResult.session.user,
+      user: auth.user,
       profile,
       nextRoute,
     })

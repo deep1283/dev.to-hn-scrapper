@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { ClerkProvider } from "@clerk/nextjs"
 import { Playfair_Display, Inter, Caveat } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
@@ -20,6 +21,7 @@ const caveat = Caveat({
 
 const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000').replace(/\/+$/, '')
 const metadataBase = new URL(appUrl)
+const hasClerk = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)
 const defaultTitle = 'Signalze | Monitor HN, Dev.to, and GitHub Discussions'
 const defaultDescription =
   'Monitor HN, dev.to and GitHub Discussions for your brand or keywords. Engage early, grow faster.'
@@ -90,10 +92,12 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const content = hasClerk ? <ClerkProvider>{children}</ClerkProvider> : children
+
   return (
     <html lang="en">
       <body className={`${inter.variable} ${playfair.variable} ${caveat.variable} font-sans antialiased`}>
-        {children}
+        {content}
         <Analytics />
       </body>
     </html>

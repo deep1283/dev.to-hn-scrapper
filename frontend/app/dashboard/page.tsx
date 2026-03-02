@@ -159,6 +159,12 @@ export default function DashboardPage() {
   }
 
   async function handleLogout() {
+    const clerk = (window as { Clerk?: { signOut?: (options?: { redirectUrl?: string }) => Promise<void> } }).Clerk
+    if (clerk?.signOut) {
+      await clerk.signOut({ redirectUrl: "/login" })
+      return
+    }
+
     await fetch("/api/auth/logout", {
       method: "POST",
       credentials: "include",
