@@ -28,6 +28,18 @@ type PasswordAuthResponse = {
   }
 }
 
+function getSafeNext(next: string | null): string | null {
+  if (!next || !next.startsWith("/")) {
+    return null
+  }
+
+  if (next === "/login" || next === "/sign-in") {
+    return null
+  }
+
+  return next
+}
+
 async function startTrial(planId: string): Promise<StartTrialResponse> {
   const response = await fetch("/api/billing/start-trial", {
     method: "POST",
@@ -105,6 +117,7 @@ function LoginForm() {
   const isCheckoutReturn = searchParams.get("checkout") === "return"
   const clerkDone = searchParams.get("clerk_done") === "1"
   const preSelectedPlan = !isCheckoutReturn && isPlanId(planParam) ? planParam : null
+  const safeNext = getSafeNext(searchParams.get("next"))
 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -145,7 +158,12 @@ function LoginForm() {
           return
         }
 
-        router.replace(profile.onboarding_completed ? "/dashboard" : "/onboarding")
+        if (!profile.onboarding_completed) {
+          router.replace("/onboarding")
+          return
+        }
+
+        router.replace(safeNext ?? "/dashboard")
       } catch (bootstrapError) {
         setError(bootstrapError instanceof Error ? bootstrapError.message : "Unable to continue.")
       } finally {
@@ -154,7 +172,7 @@ function LoginForm() {
     }
 
     void bootstrap()
-  }, [clerkDone, preSelectedPlan, router])
+  }, [clerkDone, preSelectedPlan, router, safeNext])
 
   async function handleSendMagicLink(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()

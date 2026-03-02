@@ -7,6 +7,7 @@ import { FormEvent, useMemo, useRef, useState } from "react"
 import { useSignIn, useSignUp } from "@clerk/nextjs"
 
 import { BrandIllustration } from "@/components/auth/brand-illustration"
+import { isPlanId } from "@/lib/plans"
 
 const AUTH_PROVIDER_TIMEOUT_MS = 20000
 const AUTH_PROVIDER_TIMEOUT_ERROR = "auth_provider_timeout"
@@ -74,15 +75,18 @@ export default function SignInPage() {
   const plan = searchParams.get("plan")
 
   const redirectAfterAuth = useMemo(() => {
+    const params = new URLSearchParams()
+    params.set("clerk_done", "1")
+
     if (next && next.startsWith("/")) {
-      return next
+      params.set("next", next)
     }
 
-    if (plan) {
-      return `/pricing?plan=${encodeURIComponent(plan)}`
+    if (plan && isPlanId(plan)) {
+      params.set("plan", plan)
     }
 
-    return "/dashboard"
+    return `/login?${params.toString()}`
   }, [next, plan])
 
   async function postPreflight<T>(url: string, body: Record<string, unknown>): Promise<T> {
