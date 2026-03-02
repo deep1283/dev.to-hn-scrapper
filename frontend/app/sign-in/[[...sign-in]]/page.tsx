@@ -3,8 +3,8 @@
 import Image from "next/image"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
-import { FormEvent, useMemo, useRef, useState } from "react"
-import { useSignIn, useSignUp } from "@clerk/nextjs"
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react"
+import { useAuth, useSignIn, useSignUp } from "@clerk/nextjs"
 
 import { BrandIllustration } from "@/components/auth/brand-illustration"
 import { isPlanId } from "@/lib/plans"
@@ -57,8 +57,11 @@ function isIdentifierNotFoundError(error: unknown): boolean {
 export default function SignInPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const authState = useAuth()
   const signInState = useSignIn()
   const signUpState = useSignUp()
+  const isAuthLoaded = authState.isLoaded
+  const isSignedIn = authState.isSignedIn
   const isLoaded = signInState.isLoaded && signUpState.isLoaded
   const signIn = signInState.isLoaded ? signInState.signIn : null
   const signUp = signUpState.isLoaded ? signUpState.signUp : null
@@ -88,6 +91,16 @@ export default function SignInPage() {
     return params.toString() ? `/auth/complete?${params.toString()}` : "/auth/complete"
   }, [next, plan])
 
+  useEffect(() => {
+    if (!isAuthLoaded) {
+      return
+    }
+
+    if (isSignedIn) {
+      router.replace(redirectAfterAuth)
+    }
+  }, [isAuthLoaded, isSignedIn, redirectAfterAuth, router])
+
   async function postPreflight<T>(url: string, body: Record<string, unknown>): Promise<T> {
     const response = await fetch(url, {
       method: "POST",
@@ -111,6 +124,12 @@ export default function SignInPage() {
     if (!isLoaded || !signIn) {
       return
     }
+
+    if (isSignedIn) {
+      router.replace(redirectAfterAuth)
+      return
+    }
+
     const signInClient = signIn
 
     setError(null)
