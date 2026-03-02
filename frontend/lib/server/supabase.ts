@@ -285,6 +285,49 @@ async function getProfileByClerkUserId(accessToken: string, clerkUserId: string)
   }
 }
 
+async function getProfileByEmail(accessToken: string, email: string): Promise<ProfileRow | null> {
+  const normalized = email.trim().toLowerCase()
+  if (!normalized) {
+    return null
+  }
+
+  try {
+    const rows = await restRequest<ProfileRow[]>(
+      `/profiles?email=eq.${encodeURIComponent(normalized)}&select=${PROFILE_SELECT}&limit=1`,
+      accessToken,
+    )
+    return rows[0] ?? null
+  } catch (error) {
+    const details = error instanceof Error ? error.message.toLowerCase() : ""
+    if (!details.includes("pending_plan_tier")) {
+      throw error
+    }
+
+    const legacyRows = await restRequest<
+      Array<
+        Omit<ProfileRow, "pending_plan_tier" | "pending_plan_effective_at"> & {
+          pending_plan_tier?: null
+          pending_plan_effective_at?: null
+        }
+      >
+    >(
+      `/profiles?email=eq.${encodeURIComponent(
+        normalized,
+      )}&select=id,email,clerk_user_id,plan_tier,billing_mode,plan_selected_at,trial_started_at,trial_ends_at,onboarding_completed&limit=1`,
+      accessToken,
+    )
+    const legacy = legacyRows[0]
+    if (!legacy) {
+      return null
+    }
+    return {
+      ...legacy,
+      pending_plan_tier: null,
+      pending_plan_effective_at: null,
+    }
+  }
+}
+
 export async function getProfile(accessToken: string, userId: string): Promise<ProfileRow | null> {
   if (isUuid(userId)) {
     return getProfileById(accessToken, userId)
@@ -326,13 +369,31 @@ export async function ensureProfile(accessToken: string, userId: string, email?:
   }
 
   const isSupabaseUserId = isUuid(userId)
+  const normalizedEmail = typeof email === "string" ? email.trim().toLowerCase() : undefined
+
+  // Clerk users that already exist in DB (from pre-Clerk auth) should keep their existing plan/profile.
+  if (!isSupabaseUserId && normalizedEmail) {
+    const existingByEmail = await getProfileByEmail(accessToken, normalizedEmail)
+    if (existingByEmail) {
+      if (existingByEmail.clerk_user_id && existingByEmail.clerk_user_id !== userId) {
+        throw new AppError(409, "This email is already linked to another account.")
+      }
+
+      const linked = await patchProfile(accessToken, existingByEmail.id, {
+        clerk_user_id: userId,
+        email: normalizedEmail,
+      })
+      return applyPendingPlanIfDue(accessToken, linked.id, linked)
+    }
+  }
+
   const profileId = isSupabaseUserId ? userId : crypto.randomUUID()
   await restRequest<ProfileRow[]>(`/profiles`, accessToken, {
     method: "POST",
     body: JSON.stringify([
       {
         id: profileId,
-        email: email ?? null,
+        email: normalizedEmail ?? null,
         clerk_user_id: isSupabaseUserId ? null : userId,
       },
     ]),
