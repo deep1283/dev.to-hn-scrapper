@@ -9,14 +9,10 @@ import { PLAN_CONFIG, type PlanId } from "@/lib/plans"
 import {
   ensureProfile,
   getValidSession,
-  insertBrand,
   insertKeyword,
-  listBrands,
   listKeywords,
-  updateBrand,
   updateKeyword,
   type BillingMode,
-  type BrandRow,
   type KeywordRow,
   type SessionData,
 } from "@/lib/supabase-lite"
@@ -66,9 +62,7 @@ export default function SettingsPage() {
   const [billing, setBilling] = useState<BillingMode>("trial")
   const [trialEndsAt, setTrialEndsAt] = useState<string | null>(null)
 
-  const [brandInput, setBrandInput] = useState("")
   const [keywordInput, setKeywordInput] = useState("")
-  const [brandRows, setBrandRows] = useState<BrandRow[]>([])
   const [keywordRows, setKeywordRows] = useState<KeywordRow[]>([])
 
   const [isLoading, setIsLoading] = useState(true)
@@ -114,8 +108,7 @@ export default function SettingsPage() {
         setBilling(profile.billing_mode ?? "trial")
         setTrialEndsAt(profile.trial_ends_at ?? null)
 
-        const [brands, keywords, slackStatusResponse] = await Promise.all([
-          listBrands(validSession),
+        const [keywords, slackStatusResponse] = await Promise.all([
           listKeywords(validSession),
           fetch("/api/integrations/slack", {
             method: "GET",
@@ -125,7 +118,6 @@ export default function SettingsPage() {
             },
           }),
         ])
-        setBrandRows(brands)
         setKeywordRows(keywords)
         if (slackStatusResponse.ok) {
           const slackStatus = (await slackStatusResponse.json()) as SlackStatusResponse
@@ -148,53 +140,13 @@ export default function SettingsPage() {
   }, [])
 
   const planConfig = PLAN_CONFIG[plan]
-  const activeBrands = useMemo(() => brandRows.filter((item) => item.is_active), [brandRows])
   const activeKeywords = useMemo(() => keywordRows.filter((item) => item.is_active), [keywordRows])
 
-  const overBrandCount =
-    planConfig.maxBrands === null ? 0 : Math.max(0, activeBrands.length - planConfig.maxBrands)
   const overKeywordCount = Math.max(0, activeKeywords.length - planConfig.maxKeywords)
-  const isOverPlanLimits = overBrandCount > 0 || overKeywordCount > 0
+  const isOverPlanLimits = overKeywordCount > 0
 
-  const brandLimitReached = planConfig.maxBrands !== null && activeBrands.length >= planConfig.maxBrands
   const keywordLimitReached = activeKeywords.length >= planConfig.maxKeywords
   const canUseSlack = plan === "growth_15"
-
-  async function addBrand() {
-    if (!session || brandLimitReached) {
-      return
-    }
-
-    setError(null)
-    const normalized = cleanInput(brandInput)
-    if (!normalized) {
-      return
-    }
-
-    const existing = brandRows.find((brand) => brand.name.toLowerCase() === normalized.toLowerCase())
-    if (existing?.is_active) {
-      setBrandInput("")
-      return
-    }
-
-    setIsSaving(true)
-    try {
-      if (existing) {
-        const updated = await updateBrand(session, existing.id, { is_active: true, name: normalized })
-        if (updated) {
-          setBrandRows((current) => current.map((row) => (row.id === updated.id ? updated : row)))
-        }
-      } else {
-        const inserted = await insertBrand(session, normalized)
-        setBrandRows((current) => [...current, inserted])
-      }
-      setBrandInput("")
-    } catch (addError) {
-      setError(addError instanceof Error ? addError.message : "Failed to add brand")
-    } finally {
-      setIsSaving(false)
-    }
-  }
 
   async function addKeyword() {
     if (!session || keywordLimitReached) {
@@ -232,24 +184,6 @@ export default function SettingsPage() {
     }
   }
 
-  async function removeBrand(brand: BrandRow) {
-    if (!session) {
-      return
-    }
-
-    setIsSaving(true)
-    setError(null)
-    try {
-      const updated = await updateBrand(session, brand.id, { is_active: false })
-      if (updated) {
-        setBrandRows((current) => current.map((row) => (row.id === updated.id ? updated : row)))
-      }
-    } catch (removeError) {
-      setError(removeError instanceof Error ? removeError.message : "Failed to remove brand")
-    } finally {
-      setIsSaving(false)
-    }
-  }
 
   async function removeKeyword(keyword: KeywordRow) {
     if (!session) {
@@ -454,7 +388,7 @@ export default function SettingsPage() {
 
         <section className="p-2 sm:p-3">
           <h1 className="font-handwriting text-3xl text-card-foreground sm:text-4xl">Settings</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Manage your plan, brands, and keywords.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Manage your plan and keywords.</p>
 
           {error ? <p className="mt-4 rounded-xl bg-destructive/10 px-4 py-2.5 text-sm text-destructive">{error}</p> : null}
           {pendingPlan && pendingPlanEffectiveAt ? (
@@ -469,44 +403,24 @@ export default function SettingsPage() {
                 You&apos;re over your new plan limits. Remove extra items to continue.
               </p>
               <p className="mt-1 text-xs text-destructive/90">
-                {overBrandCount > 0 ? `${overBrandCount} brand${overBrandCount > 1 ? "s" : ""} over limit` : "Brand limit OK"}
-                {" · "}
                 {overKeywordCount > 0
                   ? `${overKeywordCount} keyword${overKeywordCount > 1 ? "s" : ""} over limit`
                   : "Keyword limit OK"}
               </p>
 
-              <div className="mt-4 grid gap-4 md:grid-cols-2">
-                <div>
-                  <p className="text-xs font-medium text-foreground">Brands to adjust</p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {activeBrands.map((brand) => (
-                      <button
-                        key={brand.id}
-                        onClick={() => void removeBrand(brand)}
-                        className="group max-w-full break-all rounded-full border border-border/40 bg-background px-3.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:text-destructive"
-                      >
-                        {brand.name} <span className="opacity-50 group-hover:opacity-100">×</span>
-                      </button>
-                    ))}
-                    {!activeBrands.length ? <span className="text-xs text-muted-foreground">No active brands.</span> : null}
-                  </div>
-                </div>
-
-                <div>
-                  <p className="text-xs font-medium text-foreground">Keywords to adjust</p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {activeKeywords.map((keyword) => (
-                      <button
-                        key={keyword.id}
-                        onClick={() => void removeKeyword(keyword)}
-                        className="group max-w-full break-all rounded-full border border-border/40 bg-background px-3.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:text-destructive"
-                      >
-                        {keyword.query} <span className="opacity-50 group-hover:opacity-100">×</span>
-                      </button>
-                    ))}
-                    {!activeKeywords.length ? <span className="text-xs text-muted-foreground">No active keywords.</span> : null}
-                  </div>
+              <div className="mt-4">
+                <p className="text-xs font-medium text-foreground">Keywords to adjust</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {activeKeywords.map((keyword) => (
+                    <button
+                      key={keyword.id}
+                      onClick={() => void removeKeyword(keyword)}
+                      className="group max-w-full break-all rounded-full border border-border/40 bg-background px-3.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:text-destructive"
+                    >
+                      {keyword.query} <span className="opacity-50 group-hover:opacity-100">×</span>
+                    </button>
+                  ))}
+                  {!activeKeywords.length ? <span className="text-xs text-muted-foreground">No active keywords.</span> : null}
                 </div>
               </div>
             </div>
@@ -519,11 +433,7 @@ export default function SettingsPage() {
                 {planConfig.name} · {planConfig.price}
               </p>
 
-              <div className="mt-4 grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs text-muted-foreground">Brands</p>
-                  <p className="mt-1 font-serif text-2xl text-foreground">{planConfig.maxBrands === null ? "∞" : planConfig.maxBrands}</p>
-                </div>
+              <div className="mt-4 grid grid-cols-1 gap-4 sm:max-w-xs">
                 <div>
                   <p className="text-xs text-muted-foreground">Keywords</p>
                   <p className="mt-1 font-serif text-2xl text-foreground">{planConfig.maxKeywords}</p>
@@ -631,48 +541,7 @@ export default function SettingsPage() {
 
             <section>
               <div className="flex items-center justify-between gap-3">
-                <h2 className="font-handwriting text-2xl text-card-foreground sm:text-3xl">Brands</h2>
-                <span className="text-xs font-medium text-muted-foreground">{activeBrands.length}/{planConfig.maxBrands ?? "∞"}</span>
-              </div>
-              <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                <input
-                  value={brandInput}
-                  onChange={(event) => setBrandInput(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.preventDefault()
-                      void addBrand()
-                    }
-                  }}
-                  disabled={brandLimitReached}
-                  placeholder={brandLimitReached ? "Remove existing brand first" : "e.g. Signalze"}
-                  className="h-10 w-full rounded-xl border border-input bg-background px-4 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-accent/40 disabled:opacity-50"
-                />
-                <button
-                  onClick={() => void addBrand()}
-                  disabled={isSaving || brandLimitReached}
-                  className="h-10 w-full rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
-                >
-                  {brandLimitReached ? "Limit reached" : "Add"}
-                </button>
-              </div>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {activeBrands.map((brand) => (
-                  <button
-                    key={brand.id}
-                    onClick={() => void removeBrand(brand)}
-                    className="group max-w-full break-all rounded-full border border-border/40 px-3.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:text-destructive"
-                  >
-                    {brand.name} <span className="opacity-50 group-hover:opacity-100">×</span>
-                  </button>
-                ))}
-                {!activeBrands.length ? <p className="text-sm text-muted-foreground">No brands added yet.</p> : null}
-              </div>
-            </section>
-
-            <section>
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="font-handwriting text-2xl text-card-foreground sm:text-3xl">Niche keywords</h2>
+                <h2 className="font-handwriting text-2xl text-card-foreground sm:text-3xl">Keywords</h2>
                 <span className="text-xs font-medium text-muted-foreground">{activeKeywords.length}/{planConfig.maxKeywords}</span>
               </div>
               <div className="mt-4 flex flex-col gap-2 sm:flex-row">

@@ -43,11 +43,8 @@ export function parsePlanId(value: unknown): PlanId {
   return value
 }
 
-export function assertPlanCounts(planId: PlanId, brands: string[], keywords: string[]) {
+export function assertPlanCounts(planId: PlanId, keywords: string[]) {
   const plan = PLAN_CONFIG[planId]
-  if (plan.maxBrands !== null && brands.length > plan.maxBrands) {
-    throw badRequest(`Your ${plan.name} plan supports up to ${plan.maxBrands} brand.`)
-  }
   if (keywords.length > plan.maxKeywords) {
     throw badRequest(`Your ${plan.name} plan supports up to ${plan.maxKeywords} keywords.`)
   }

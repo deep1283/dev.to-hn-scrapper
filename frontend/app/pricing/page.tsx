@@ -93,7 +93,7 @@ function PricingContent() {
           <p className="mt-4 max-w-xl text-base text-muted-foreground">
             {manageMode
               ? "Switch plans anytime. Your selection will be applied after checkout confirmation."
-              : "Track mentions of your brand across Hacker News, Dev.to, and GitHub Discussions. Start with a 2-day free trial."}
+              : "Track mentions for your keywords across Hacker News, Dev.to, and GitHub Discussions. Start with a 2-day free trial."}
           </p>
         </div>
 
@@ -152,11 +152,6 @@ function PricingContent() {
                 </div>
 
                 <ul className="flex flex-col gap-2.5 text-sm text-foreground">
-                  <PricingFeature>
-                    {plan.maxBrands === null
-                      ? "Multiple brands"
-                      : `${plan.maxBrands} brand`}
-                  </PricingFeature>
                   <PricingFeature>Up to {plan.maxKeywords} keywords</PricingFeature>
                   <PricingFeature>2-day free trial</PricingFeature>
                   {SOURCES.map((s) => (

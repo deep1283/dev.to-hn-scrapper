@@ -15,9 +15,7 @@ import {
 import {
   ensureProfile,
   getValidSession,
-  listBrands,
   listKeywords,
-  type BrandRow,
   type KeywordRow,
 } from "@/lib/supabase-lite"
 
@@ -78,7 +76,6 @@ function formatDayHeading(date: Date): string {
 export default function DashboardPage() {
   const [activePlatform, setActivePlatform] = useState<PlatformFilter>("all")
   const [mentions, setMentions] = useState<Mention[]>([])
-  const [brandRows, setBrandRows] = useState<BrandRow[]>([])
   const [keywordRows, setKeywordRows] = useState<KeywordRow[]>([])
 
   const [isLoading, setIsLoading] = useState(true)
@@ -110,8 +107,7 @@ export default function DashboardPage() {
           return
         }
 
-        const [brands, keywords] = await Promise.all([listBrands(validSession), listKeywords(validSession)])
-        setBrandRows(brands)
+        const keywords = await listKeywords(validSession)
         setKeywordRows(keywords)
       } catch (bootstrapError) {
         const message = bootstrapError instanceof Error ? bootstrapError.message : "Failed to load dashboard"
@@ -135,7 +131,6 @@ export default function DashboardPage() {
     return mentions.filter((mention) => mention.platform === activePlatform)
   }, [mentions, activePlatform])
 
-  const activeBrands = useMemo(() => brandRows.filter((item) => item.is_active), [brandRows])
   const activeKeywords = useMemo(() => keywordRows.filter((item) => item.is_active), [keywordRows])
 
   const counts = useMemo(() => {
@@ -294,34 +289,18 @@ export default function DashboardPage() {
 
         <section className="p-2 sm:p-3">
           <h2 className="font-handwriting text-3xl text-card-foreground">Tracking now</h2>
-          <div className="mt-3 grid gap-4 sm:grid-cols-2">
-            <div>
-              <p className="text-xs font-medium text-muted-foreground">Brands</p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {activeBrands.length ? (
-                  activeBrands.map((brand) => (
-                    <span key={brand.id} className="max-w-full break-all rounded-full border border-border/40 px-3 py-1 text-xs text-foreground">
-                      {brand.name}
-                    </span>
-                  ))
-                ) : (
-                  <span className="text-sm text-muted-foreground">No active brands</span>
-                )}
-              </div>
-            </div>
-            <div>
-              <p className="text-xs font-medium text-muted-foreground">Keywords</p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {activeKeywords.length ? (
-                  activeKeywords.map((keyword) => (
-                    <span key={keyword.id} className="max-w-full break-all rounded-full border border-border/40 px-3 py-1 text-xs text-foreground">
-                      {keyword.query}
-                    </span>
-                  ))
-                ) : (
-                  <span className="text-sm text-muted-foreground">No active keywords</span>
-                )}
-              </div>
+          <div className="mt-3">
+            <p className="text-xs font-medium text-muted-foreground">Keywords</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {activeKeywords.length ? (
+                activeKeywords.map((keyword) => (
+                  <span key={keyword.id} className="max-w-full break-all rounded-full border border-border/40 px-3 py-1 text-xs text-foreground">
+                    {keyword.query}
+                  </span>
+                ))
+              ) : (
+                <span className="text-sm text-muted-foreground">No active keywords</span>
+              )}
             </div>
           </div>
         </section>

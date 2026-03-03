@@ -106,9 +106,6 @@ export default function UpgradePage() {
                 </div>
 
                 <ul className="flex flex-col gap-2.5 text-sm text-foreground">
-                  <UpgradeFeature>
-                    {plan.maxBrands === null ? "Multiple brands" : `${plan.maxBrands} brand`}
-                  </UpgradeFeature>
                   <UpgradeFeature>Up to {plan.maxKeywords} keywords</UpgradeFeature>
                   {SOURCES.map((s) => (
                     <UpgradeFeature key={s}>{s}</UpgradeFeature>

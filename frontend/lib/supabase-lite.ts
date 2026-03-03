@@ -203,12 +203,11 @@ export async function updateKeyword(
   return payload.keyword
 }
 
-export async function syncTrackingSetup(_session: SessionData, brandNames: string[], keywordValues: string[]) {
+export async function syncTrackingSetup(_session: SessionData, terms: string[]) {
   await apiRequest<{ ok: boolean }>("/api/onboarding/setup", {
     method: "POST",
     body: JSON.stringify({
-      brands: brandNames,
-      keywords: keywordValues,
+      terms,
     }),
   })
 }

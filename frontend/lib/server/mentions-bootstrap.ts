@@ -13,8 +13,7 @@ type BootstrapMentionsResult = {
 type BootstrapParams = {
   accessToken: string
   userId: string
-  brandCount: number
-  keywordCount: number
+  termCount: number
 }
 
 function resolveWebhookTimeoutMs(): number {
@@ -67,8 +66,7 @@ async function triggerRunNowWebhook(params: BootstrapParams): Promise<void> {
       body: JSON.stringify({
         reason: "onboarding_completed",
         userId: params.userId,
-        brands: params.brandCount,
-        keywords: params.keywordCount,
+        terms: params.termCount,
         requestedAt: new Date().toISOString(),
       }),
     })

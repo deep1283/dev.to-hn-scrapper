@@ -18,7 +18,7 @@ export const PLAN_CONFIG: Record<PlanId, PlanConfig> = {
     maxBrands: 1,
     maxKeywords: 7,
     trialDays: 2,
-    description: "For solo founders tracking one brand with dashboard updates.",
+    description: "For solo founders tracking core keywords with dashboard updates.",
   },
   growth_15: {
     id: "growth_15",
@@ -27,7 +27,7 @@ export const PLAN_CONFIG: Record<PlanId, PlanConfig> = {
     maxBrands: null,
     maxKeywords: 35,
     trialDays: 2,
-    description: "For teams tracking multiple brands with Slack alerts and faster refresh.",
+    description: "For teams tracking larger keyword sets with Slack alerts and faster refresh.",
   },
 }
 

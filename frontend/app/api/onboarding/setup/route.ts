@@ -6,11 +6,10 @@ import { bootstrapMentionsAfterOnboarding } from "@/lib/server/mentions-bootstra
 import { getRequestIp, parseJsonBody } from "@/lib/server/request"
 import { takeRateLimit } from "@/lib/server/rate-limit"
 import {
-  insertBrand,
-  insertKeyword,
   listBrands,
   listKeywords,
   patchProfile,
+  insertKeyword,
   updateBrand,
   updateKeyword,
 } from "@/lib/server/supabase"
@@ -18,8 +17,25 @@ import { withSessionCookie } from "@/lib/server/session"
 import { assertPlanCounts, sanitizeStringList } from "@/lib/server/validation"
 
 type OnboardingBody = {
+  terms?: string[]
   brands?: string[]
   keywords?: string[]
+}
+
+function mergeTerms(...groups: string[][]): string[] {
+  const seen = new Set<string>()
+  const merged: string[] = []
+  for (const group of groups) {
+    for (const item of group) {
+      const key = item.toLowerCase()
+      if (seen.has(key)) {
+        continue
+      }
+      seen.add(key)
+      merged.push(item)
+    }
+  }
+  return merged
 }
 
 export async function POST(request: NextRequest) {
@@ -32,51 +48,34 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await parseJsonBody<OnboardingBody>(request)
+    const terms = sanitizeStringList(body.terms, 80, 120)
     const brands = sanitizeStringList(body.brands, 40, 80)
     const keywords = sanitizeStringList(body.keywords, 80, 120)
+    const unifiedTerms = mergeTerms(terms, keywords, brands)
 
-    if (!brands.length || !keywords.length) {
-      throw badRequest("Add at least one brand and one keyword.")
+    if (!unifiedTerms.length) {
+      throw badRequest("Add at least one keyword or brand term.")
     }
 
     const profile = auth.profile
     const shouldBootstrapMentions = !profile.onboarding_completed
 
-    assertPlanCounts(profile.plan_tier, brands, keywords)
+    assertPlanCounts(profile.plan_tier, unifiedTerms)
 
     const existingBrands = await listBrands(auth.accessToken, auth.userId, true)
     const existingKeywords = await listKeywords(auth.accessToken, auth.userId, true, false)
-
-    const brandByLower = new Map(existingBrands.map((brand) => [brand.name.toLowerCase(), brand]))
     const keywordByLower = new Map(existingKeywords.map((keyword) => [keyword.query.toLowerCase(), keyword]))
-
-    for (const brand of brands) {
-      const existing = brandByLower.get(brand.toLowerCase())
-      if (!existing) {
-        await insertBrand(auth.accessToken, auth.userId, brand)
-        continue
-      }
-
-      if (!existing.is_active || existing.name !== brand) {
-        await updateBrand(auth.accessToken, auth.userId, existing.id, {
-          is_active: true,
-          name: brand,
-        })
-      }
-    }
 
     for (const existing of existingBrands) {
       if (!existing.is_active) {
         continue
       }
-      if (!brands.some((name) => name.toLowerCase() === existing.name.toLowerCase())) {
-        await updateBrand(auth.accessToken, auth.userId, existing.id, {
-          is_active: false,
-        })
-      }
+      await updateBrand(auth.accessToken, auth.userId, existing.id, {
+        is_active: false,
+      })
     }
 
-    for (const keyword of keywords) {
+    for (const keyword of unifiedTerms) {
       const existing = keywordByLower.get(keyword.toLowerCase())
       if (!existing) {
         await insertKeyword(auth.accessToken, auth.userId, keyword)
@@ -95,7 +94,7 @@ export async function POST(request: NextRequest) {
       if (!existing.is_active) {
         continue
       }
-      if (!keywords.some((item) => item.toLowerCase() === existing.query.toLowerCase())) {
+      if (!unifiedTerms.some((item) => item.toLowerCase() === existing.query.toLowerCase())) {
         await updateKeyword(auth.accessToken, auth.userId, existing.id, {
           is_active: false,
         })
@@ -107,8 +106,7 @@ export async function POST(request: NextRequest) {
       await bootstrapMentionsAfterOnboarding({
         accessToken: auth.accessToken,
         userId: auth.userId,
-        brandCount: brands.length,
-        keywordCount: keywords.length,
+        termCount: unifiedTerms.length,
       })
     }
 
