@@ -49,7 +49,8 @@ class HackerNewsSource:
 
             title = hit.get("title") or hit.get("story_title") or "Hacker News mention"
             excerpt = _strip_html(hit.get("comment_text") or hit.get("story_text") or "")
-            url = hit.get("url") or hit.get("story_url") or f"https://news.ycombinator.com/item?id={object_id}"
+            # Always link to the HN discussion thread so users can reply in-context.
+            url = f"https://news.ycombinator.com/item?id={object_id}"
 
             results.append(
                 MentionCandidate(
