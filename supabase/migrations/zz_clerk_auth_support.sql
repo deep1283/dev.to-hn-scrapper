@@ -66,17 +66,22 @@ with check (
   or clerk_user_id = public.requesting_user_id()
 );
 
-drop policy if exists "brands_owner_all" on public.brands;
-create policy "brands_owner_all"
-on public.brands for all
-using (
-  user_id = (select auth.uid())
-  or user_id = public.requesting_profile_id()
-)
-with check (
-  user_id = (select auth.uid())
-  or user_id = public.requesting_profile_id()
-);
+do $$
+begin
+  if to_regclass('public.brands') is not null then
+    execute 'drop policy if exists "brands_owner_all" on public.brands';
+    execute 'create policy "brands_owner_all"
+             on public.brands for all
+             using (
+               user_id = (select auth.uid())
+               or user_id = public.requesting_profile_id()
+             )
+             with check (
+               user_id = (select auth.uid())
+               or user_id = public.requesting_profile_id()
+             )';
+  end if;
+end $$;
 
 drop policy if exists "keywords_owner_all" on public.keywords;
 create policy "keywords_owner_all"
