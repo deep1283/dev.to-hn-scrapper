@@ -258,7 +258,6 @@ class WorkerPipelineTests(unittest.TestCase):
         task = SourceTask(
             keyword_id=uuid4(),
             user_id=uuid4(),
-            brand_id=None,
             query="signalze",
             source="github_discussions",
             last_checked_at=None,
@@ -293,7 +292,6 @@ class WorkerPipelineTests(unittest.TestCase):
         task = SourceTask(
             keyword_id=uuid4(),
             user_id=uuid4(),
-            brand_id=None,
             query="signalze",
             source="hackernews",
             last_checked_at=None,
@@ -340,7 +338,6 @@ class WorkerPipelineTests(unittest.TestCase):
         task = SourceTask(
             keyword_id=uuid4(),
             user_id=uuid4(),
-            brand_id=None,
             query="signalze",
             source="github_discussions",
             last_checked_at=None,
@@ -375,7 +372,6 @@ class WorkerPipelineTests(unittest.TestCase):
         task = SourceTask(
             keyword_id=uuid4(),
             user_id=uuid4(),
-            brand_id=None,
             query="signalze",
             source="devto",
             last_checked_at=None,

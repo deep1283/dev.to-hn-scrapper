@@ -10,7 +10,6 @@ from mention_worker.sources.registry import source_label
 
 def build_slack_payload(alert: PendingAlert) -> dict:
     mention = alert.mention
-    brand = alert.brand_name or "your brand"
     platform = source_label(mention.platform)
 
     published = mention.published_at.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
@@ -30,7 +29,6 @@ def build_slack_payload(alert: PendingAlert) -> dict:
             {
                 "type": "section",
                 "fields": [
-                    {"type": "mrkdwn", "text": f"*Brand*\n{brand}"},
                     {"type": "mrkdwn", "text": f"*Keyword*\n{alert.query}"},
                     {"type": "mrkdwn", "text": f"*Source*\n{platform}"},
                     {"type": "mrkdwn", "text": f"*Published*\n{published}"},

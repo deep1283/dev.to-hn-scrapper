@@ -9,7 +9,6 @@ import { PLAN_CONFIG, type PlanId } from "@/lib/plans"
 import {
   ensureProfile,
   getValidSession,
-  listBrands,
   listKeywords,
   syncTrackingSetup,
   type BillingMode,
@@ -18,24 +17,6 @@ import {
 
 function cleanInput(value: string): string {
   return value.trim().replace(/\s+/g, " ")
-}
-
-function mergeTerms(...groups: string[][]): string[] {
-  const seen = new Set<string>()
-  const merged: string[] = []
-
-  for (const group of groups) {
-    for (const item of group) {
-      const key = item.toLowerCase()
-      if (seen.has(key)) {
-        continue
-      }
-      seen.add(key)
-      merged.push(item)
-    }
-  }
-
-  return merged
 }
 
 export default function OnboardingPage() {
@@ -78,8 +59,8 @@ export default function OnboardingPage() {
         setPlanId(profile.plan_tier)
         setBilling(profile.billing_mode ?? "trial")
 
-        const [existingBrands, existingKeywords] = await Promise.all([listBrands(validSession), listKeywords(validSession)])
-        setTerms(mergeTerms(existingKeywords.map((item) => item.query), existingBrands.map((item) => item.name)))
+        const existingKeywords = await listKeywords(validSession)
+        setTerms(existingKeywords.map((item) => item.query))
 
         if (profile.onboarding_completed) {
           router.replace("/dashboard")
@@ -136,7 +117,7 @@ export default function OnboardingPage() {
     }
 
     if (!hasRequiredData) {
-      setError("Please add at least one keyword or brand term to continue.")
+      setError("Please add at least one keyword to continue.")
       return
     }
 
@@ -175,7 +156,7 @@ export default function OnboardingPage() {
           <p className="mt-4 font-handwriting text-lg text-primary">Almost there!</p>
           <h1 className="mt-1 font-serif text-2xl text-foreground sm:text-3xl">Set up your tracking</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Type the keyword or brand you&apos;re looking to monitor. Then we&apos;ll redirect you to the dashboard.
+            Type the keywords you&apos;re looking to monitor. Then we&apos;ll redirect you to the dashboard.
           </p>
         </header>
 

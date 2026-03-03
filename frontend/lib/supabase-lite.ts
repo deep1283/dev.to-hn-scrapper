@@ -23,12 +23,6 @@ export type ProfileRow = {
   onboarding_completed: boolean
 }
 
-export type BrandRow = {
-  id: string
-  name: string
-  is_active: boolean
-}
-
 export type KeywordRow = {
   id: string
   query: string
@@ -141,34 +135,6 @@ export async function updateProfile(
     body: JSON.stringify(patch),
   })
   return payload.profile
-}
-
-export async function listBrands(_session: SessionData, includeInactive = false): Promise<BrandRow[]> {
-  const payload = await apiRequest<{ brands: BrandRow[] }>(
-    `/api/tracking/brands?includeInactive=${includeInactive ? "true" : "false"}`,
-    { method: "GET" },
-  )
-  return payload.brands
-}
-
-export async function insertBrand(_session: SessionData, name: string): Promise<BrandRow> {
-  const payload = await apiRequest<{ brand: BrandRow }>("/api/tracking/brands", {
-    method: "POST",
-    body: JSON.stringify({ name }),
-  })
-  return payload.brand
-}
-
-export async function updateBrand(_session: SessionData, brandId: string, patch: Partial<BrandRow>): Promise<BrandRow | null> {
-  const payload = await apiRequest<{ brand: BrandRow }>("/api/tracking/brands", {
-    method: "PATCH",
-    body: JSON.stringify({
-      id: brandId,
-      name: patch.name,
-      isActive: patch.is_active,
-    }),
-  })
-  return payload.brand
 }
 
 export async function listKeywords(_session: SessionData, includeInactive = false): Promise<KeywordRow[]> {

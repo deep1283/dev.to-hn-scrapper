@@ -40,12 +40,6 @@ export type ProfileRow = {
   onboarding_completed: boolean
 }
 
-export type BrandRow = {
-  id: string
-  name: string
-  is_active: boolean
-}
-
 export type KeywordRow = {
   id: string
   query: string
@@ -490,45 +484,6 @@ export async function patchProfile(
     throw new AppError(400, "Profile update failed.")
   }
 
-  return rows[0]
-}
-
-export async function listBrands(accessToken: string, userId: string, includeInactive = false): Promise<BrandRow[]> {
-  const activeFilter = includeInactive ? "" : "&is_active=is.true"
-  return restRequest<BrandRow[]>(
-    `/brands?user_id=eq.${encodeURIComponent(userId)}${activeFilter}&select=id,name,is_active&order=created_at.asc`,
-    accessToken,
-  )
-}
-
-export async function insertBrand(accessToken: string, userId: string, name: string): Promise<BrandRow> {
-  const rows = await restRequest<BrandRow[]>(`/brands`, accessToken, {
-    method: "POST",
-    body: JSON.stringify([{ user_id: userId, name, is_active: true }]),
-  })
-  if (!rows[0]) {
-    throw new AppError(400, "Failed to create brand.")
-  }
-  return rows[0]
-}
-
-export async function updateBrand(
-  accessToken: string,
-  userId: string,
-  brandId: string,
-  patch: Partial<BrandRow>,
-): Promise<BrandRow> {
-  const rows = await restRequest<BrandRow[]>(
-    `/brands?id=eq.${encodeURIComponent(brandId)}&user_id=eq.${encodeURIComponent(userId)}`,
-    accessToken,
-    {
-      method: "PATCH",
-      body: JSON.stringify(patch),
-    },
-  )
-  if (!rows[0]) {
-    throw new AppError(404, "Brand not found.")
-  }
   return rows[0]
 }
 

@@ -172,7 +172,6 @@ class Database:
                 select
                   ks.keyword_id,
                   k.user_id,
-                  k.brand_id,
                   k.query,
                   ks.source::text as source,
                   st.last_checked_at
@@ -200,7 +199,6 @@ class Database:
                 SourceTask(
                     keyword_id=row["keyword_id"],
                     user_id=row["user_id"],
-                    brand_id=row["brand_id"],
                     query=row["query"],
                     source=row["source"],
                     last_checked_at=row["last_checked_at"],
@@ -402,7 +400,6 @@ class Database:
         *,
         user_id: UUID,
         keyword_id: UUID,
-        brand_id: UUID | None,
         mention_id: int,
         matched_query: str,
     ) -> bool:
@@ -410,12 +407,12 @@ class Database:
             cur.execute(
                 """
                 insert into public.mention_matches
-                  (user_id, keyword_id, brand_id, mention_id, matched_query)
-                values (%s, %s, %s, %s, %s)
+                  (user_id, keyword_id, mention_id, matched_query)
+                values (%s, %s, %s, %s)
                 on conflict (user_id, mention_id, keyword_id) do nothing
                 returning id
                 """,
-                (user_id, keyword_id, brand_id, mention_id, matched_query),
+                (user_id, keyword_id, mention_id, matched_query),
             )
             row = cur.fetchone()
         return row is not None
@@ -463,7 +460,6 @@ class Database:
                   ad.keyword_id,
                   p.slack_webhook_url_enc as webhook_url,
                   k.query,
-                  b.name as brand_name,
                   m.platform::text as platform,
                   m.external_id,
                   m.url,
@@ -476,7 +472,6 @@ class Database:
                 from public.alert_deliveries ad
                 join public.profiles p on p.id = ad.user_id
                 join public.keywords k on k.id = ad.keyword_id
-                left join public.brands b on b.id = k.brand_id
                 join public.mentions m on m.id = ad.mention_id
                 where ad.status in ('pending', 'failed')
                   and ad.next_attempt_at <= now()
@@ -500,7 +495,6 @@ class Database:
                     keyword_id=row["keyword_id"],
                     webhook_url=row["webhook_url"],
                     query=row["query"],
-                    brand_name=row["brand_name"],
                     mention=MentionCandidate(
                         platform=row["platform"],
                         external_id=row["external_id"],

@@ -250,7 +250,6 @@ class Worker:
                             conn,
                             user_id=task.user_id,
                             keyword_id=task.keyword_id,
-                            brand_id=task.brand_id,
                             mention_id=mention.mention_id,
                             matched_query=task.query,
                         )

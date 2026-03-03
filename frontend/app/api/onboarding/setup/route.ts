@@ -6,11 +6,9 @@ import { bootstrapMentionsAfterOnboarding } from "@/lib/server/mentions-bootstra
 import { getRequestIp, parseJsonBody } from "@/lib/server/request"
 import { takeRateLimit } from "@/lib/server/rate-limit"
 import {
-  listBrands,
   listKeywords,
   patchProfile,
   insertKeyword,
-  updateBrand,
   updateKeyword,
 } from "@/lib/server/supabase"
 import { withSessionCookie } from "@/lib/server/session"
@@ -18,7 +16,6 @@ import { assertPlanCounts, sanitizeStringList } from "@/lib/server/validation"
 
 type OnboardingBody = {
   terms?: string[]
-  brands?: string[]
   keywords?: string[]
 }
 
@@ -49,12 +46,11 @@ export async function POST(request: NextRequest) {
 
     const body = await parseJsonBody<OnboardingBody>(request)
     const terms = sanitizeStringList(body.terms, 80, 120)
-    const brands = sanitizeStringList(body.brands, 40, 80)
     const keywords = sanitizeStringList(body.keywords, 80, 120)
-    const unifiedTerms = mergeTerms(terms, keywords, brands)
+    const unifiedTerms = mergeTerms(terms, keywords)
 
     if (!unifiedTerms.length) {
-      throw badRequest("Add at least one keyword or brand term.")
+      throw badRequest("Add at least one keyword.")
     }
 
     const profile = auth.profile
@@ -62,18 +58,8 @@ export async function POST(request: NextRequest) {
 
     assertPlanCounts(profile.plan_tier, unifiedTerms)
 
-    const existingBrands = await listBrands(auth.accessToken, auth.userId, true)
     const existingKeywords = await listKeywords(auth.accessToken, auth.userId, true, false)
     const keywordByLower = new Map(existingKeywords.map((keyword) => [keyword.query.toLowerCase(), keyword]))
-
-    for (const existing of existingBrands) {
-      if (!existing.is_active) {
-        continue
-      }
-      await updateBrand(auth.accessToken, auth.userId, existing.id, {
-        is_active: false,
-      })
-    }
 
     for (const keyword of unifiedTerms) {
       const existing = keywordByLower.get(keyword.toLowerCase())

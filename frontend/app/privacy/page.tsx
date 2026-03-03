@@ -30,7 +30,7 @@ export default function PrivacyPage() {
           <section>
             <h2 className="font-serif text-xl text-foreground sm:text-2xl">1. Data We Collect</h2>
             <p className="mt-3">
-              We store account details (such as email), your plan details, and the brands and keywords you configure.
+              We store account details (such as email), your plan details, and the keywords you configure.
             </p>
           </section>
 
@@ -46,7 +46,7 @@ export default function PrivacyPage() {
             <h2 className="font-serif text-xl text-foreground sm:text-2xl">3. Mention Data</h2>
             <p className="mt-3">
               Signalze collects and displays public mention data from supported sources (Hacker News, Dev.to, and
-              GitHub Discussions) based on your saved keywords and brand terms.
+              GitHub Discussions) based on your saved keywords.
             </p>
           </section>
 

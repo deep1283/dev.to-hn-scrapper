@@ -48,7 +48,6 @@ begin
     select
       k.id as keyword_id,
       k.user_id,
-      k.brand_id,
       k.query,
       lower(regexp_replace(btrim(k.query), '\s+', ' ', 'g')) as normalized_query
     from public.keywords k
@@ -60,7 +59,6 @@ begin
     select
       ak.user_id,
       ak.keyword_id,
-      ak.brand_id,
       m.id as mention_id,
       ak.query as matched_query
     from active_keywords ak
@@ -79,8 +77,8 @@ begin
      )
   ),
   inserted as (
-    insert into public.mention_matches (user_id, keyword_id, brand_id, mention_id, matched_query)
-    select user_id, keyword_id, brand_id, mention_id, matched_query
+    insert into public.mention_matches (user_id, keyword_id, mention_id, matched_query)
+    select user_id, keyword_id, mention_id, matched_query
     from candidate_matches
     on conflict (user_id, mention_id, keyword_id) do nothing
     returning 1

@@ -10,7 +10,6 @@ from uuid import UUID
 class SourceTask:
     keyword_id: UUID
     user_id: UUID
-    brand_id: UUID | None
     query: str
     source: str
     last_checked_at: datetime | None
@@ -37,7 +36,6 @@ class PendingAlert:
     keyword_id: UUID
     webhook_url: str | None
     query: str
-    brand_name: str | None
     mention: MentionCandidate
 
 

@@ -62,7 +62,7 @@ Apply [`/Users/deepmishra/vscode/signalze/supabase/schema.sql`](/Users/deepmishr
 
 The schema includes:
 - Plan limits (`starter_9`, `growth_15`)
-- Brand and keyword tracking tables
+- Keyword tracking tables
 - Mention dedup (`mentions` unique by `(platform, external_id)`)
 - Alert dedup (`alert_deliveries` unique by `(user_id, mention_id, keyword_id, channel)`)
 - Polling state (`keyword_source_state`)
@@ -70,10 +70,8 @@ The schema includes:
 - Source enum values include `hackernews`, `devto`, `github_discussions`, plus disabled placeholders (`reddit`, `google`, `brave`, `producthunt`)
 
 ## Plan limits implemented
-- `starter_9`: max **1 active brand**, max **7 active user keywords**
-- `growth_15`: max **multiple brands** (unbounded in schema), max **35 active user keywords**
-
-Brand names are tracked automatically via system keywords, and system keywords do not consume the user keyword quota.
+- `starter_9`: max **7 active keywords**
+- `growth_15`: max **35 active keywords**
 
 ## Environment variables
 Copy [`/Users/deepmishra/vscode/signalze/worker/.env.example`](/Users/deepmishra/vscode/signalze/worker/.env.example) and set values in Railway.
