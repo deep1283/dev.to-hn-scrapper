@@ -20,18 +20,16 @@ alter type public.source_name add value if not exists 'producthunt';
 
 create table if not exists public.plan_limits (
   plan_tier public.plan_tier primary key,
-  max_brands integer,
   max_keywords integer not null check (max_keywords > 0),
   updated_at timestamptz not null default now()
 );
 
-insert into public.plan_limits (plan_tier, max_brands, max_keywords)
+insert into public.plan_limits (plan_tier, max_keywords)
 values
-  ('starter_9', 1, 7),
-  ('growth_15', null, 35)
+  ('starter_9', 7),
+  ('growth_15', 35)
 on conflict (plan_tier) do update
-set max_brands = excluded.max_brands,
-    max_keywords = excluded.max_keywords,
+set max_keywords = excluded.max_keywords,
     updated_at = now();
 
 create table if not exists public.profiles (
@@ -67,35 +65,24 @@ create unique index if not exists profiles_clerk_user_id_uq
   on public.profiles(clerk_user_id)
   where clerk_user_id is not null;
 
-create table if not exists public.brands (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references public.profiles(id) on delete cascade,
-  name text not null,
-  is_active boolean not null default true,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
 
-create unique index if not exists brands_user_name_lower_uq
-  on public.brands(user_id, lower(name));
 
 create table if not exists public.keywords (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles(id) on delete cascade,
-  brand_id uuid references public.brands(id) on delete set null,
   query text not null,
-  is_system boolean not null default false,
   is_active boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint keyword_query_len check (char_length(btrim(query)) between 2 and 120)
 );
 
-create unique index if not exists keywords_user_brand_query_lower_uq
-  on public.keywords(user_id, coalesce(brand_id, '00000000-0000-0000-0000-000000000000'::uuid), lower(btrim(query)));
+create unique index if not exists keywords_user_query_active_lower_uq
+  on public.keywords(user_id, lower(btrim(query)))
+  where is_active = true;
 
-create index if not exists keywords_brand_id_idx
-  on public.keywords(brand_id);
+create index if not exists keywords_user_query_lower_idx
+  on public.keywords(user_id, lower(btrim(query)));
 
 create table if not exists public.keyword_sources (
   keyword_id uuid not null references public.keywords(id) on delete cascade,
@@ -141,7 +128,6 @@ create table if not exists public.mention_matches (
   id bigint generated always as identity primary key,
   user_id uuid not null references public.profiles(id) on delete cascade,
   keyword_id uuid not null references public.keywords(id) on delete cascade,
-  brand_id uuid references public.brands(id) on delete set null,
   mention_id bigint not null references public.mentions(id) on delete cascade,
   matched_query text not null,
   matched_at timestamptz not null default now(),
@@ -151,8 +137,7 @@ create table if not exists public.mention_matches (
 create index if not exists mention_matches_user_time_idx
   on public.mention_matches(user_id, matched_at desc);
 
-create index if not exists mention_matches_brand_id_idx
-  on public.mention_matches(brand_id);
+
 
 create index if not exists mention_matches_keyword_id_idx
   on public.mention_matches(keyword_id);
@@ -320,10 +305,7 @@ create trigger set_profiles_updated_at
 before update on public.profiles
 for each row execute function public.set_updated_at();
 
-drop trigger if exists set_brands_updated_at on public.brands;
-create trigger set_brands_updated_at
-before update on public.brands
-for each row execute function public.set_updated_at();
+
 
 drop trigger if exists set_keywords_updated_at on public.keywords;
 create trigger set_keywords_updated_at
@@ -373,13 +355,11 @@ set search_path = ''
 as $$
 declare
   tier public.plan_tier;
-  allowed_brands integer;
   allowed_keywords integer;
-  brand_count integer;
   keyword_count integer;
 begin
-  select p.plan_tier, l.max_brands, l.max_keywords
-    into tier, allowed_brands, allowed_keywords
+  select p.plan_tier, l.max_keywords
+    into tier, allowed_keywords
   from public.profiles p
   join public.plan_limits l on l.plan_tier = p.plan_tier
   where p.id = new.user_id;
@@ -388,41 +368,21 @@ begin
     raise exception 'Profile not found for user_id=%', new.user_id;
   end if;
 
-  if tg_table_name = 'brands' then
-    if new.is_active then
-      select count(*) into brand_count
-      from public.brands b
-      where b.user_id = new.user_id
-        and b.is_active
-        and (tg_op = 'INSERT' or b.id <> new.id);
+  if new.is_active then
+    select count(*) into keyword_count
+    from public.keywords k
+    where k.user_id = new.user_id
+      and k.is_active
+      and (tg_op = 'INSERT' or k.id <> new.id);
 
-      if allowed_brands is not null and brand_count >= allowed_brands then
-        raise exception 'Plan % allows at most % active brand(s). Upgrade required.', tier, allowed_brands;
-      end if;
-    end if;
-  elsif tg_table_name = 'keywords' then
-    if new.is_active then
-      select count(*) into keyword_count
-      from public.keywords k
-      where k.user_id = new.user_id
-        and k.is_active
-        and not k.is_system
-        and (tg_op = 'INSERT' or k.id <> new.id);
-
-      if keyword_count >= allowed_keywords then
-        raise exception 'Plan % allows at most % active keyword(s). Upgrade required.', tier, allowed_keywords;
-      end if;
+    if keyword_count >= allowed_keywords then
+      raise exception 'Plan % allows at most % active keyword(s). Upgrade required.', tier, allowed_keywords;
     end if;
   end if;
 
   return new;
 end;
 $$;
-
-drop trigger if exists enforce_brand_plan_limits on public.brands;
-create trigger enforce_brand_plan_limits
-before insert or update of user_id, is_active on public.brands
-for each row execute function public.enforce_plan_limits();
 
 drop trigger if exists enforce_keyword_plan_limits on public.keywords;
 create trigger enforce_keyword_plan_limits
@@ -461,54 +421,7 @@ create trigger seed_keyword_source_defaults
 after insert on public.keywords
 for each row execute function public.seed_keyword_sources_and_state();
 
-create or replace function public.sync_brand_system_keyword()
-returns trigger
-language plpgsql
-set search_path = ''
-as $$
-declare
-  existing_keyword_id uuid;
-begin
-  if tg_op = 'INSERT' then
-    insert into public.keywords (user_id, brand_id, query, is_system, is_active)
-    values (new.user_id, new.id, new.name, true, new.is_active)
-    on conflict do nothing;
-  elsif tg_op = 'UPDATE' then
-    select id into existing_keyword_id
-    from public.keywords
-    where brand_id = new.id
-      and is_system = true
-    limit 1;
 
-    if existing_keyword_id is null then
-      insert into public.keywords (user_id, brand_id, query, is_system, is_active)
-      values (new.user_id, new.id, new.name, true, new.is_active)
-      on conflict do nothing;
-    else
-      update public.keywords
-      set query = new.name,
-          is_active = new.is_active
-      where id = existing_keyword_id;
-    end if;
-  end if;
-
-  return new;
-end;
-$$;
-
-create or replace function public.delete_brand_system_keyword()
-returns trigger
-language plpgsql
-set search_path = ''
-as $$
-begin
-  delete from public.keywords
-  where brand_id = old.id
-    and is_system = true;
-
-  return old;
-end;
-$$;
 
 create or replace function public.requesting_user_id()
 returns text
@@ -584,7 +497,6 @@ begin
     select
       k.id as keyword_id,
       k.user_id,
-      k.brand_id,
       k.query,
       lower(regexp_replace(btrim(k.query), '\s+', ' ', 'g')) as normalized_query
     from public.keywords k
@@ -596,7 +508,6 @@ begin
     select
       ak.user_id,
       ak.keyword_id,
-      ak.brand_id,
       m.id as mention_id,
       ak.query as matched_query
     from active_keywords ak
@@ -615,8 +526,8 @@ begin
      )
   ),
   inserted as (
-    insert into public.mention_matches (user_id, keyword_id, brand_id, mention_id, matched_query)
-    select user_id, keyword_id, brand_id, mention_id, matched_query
+    insert into public.mention_matches (user_id, keyword_id, mention_id, matched_query)
+    select user_id, keyword_id, mention_id, matched_query
     from candidate_matches
     on conflict (user_id, mention_id, keyword_id) do nothing
     returning 1
@@ -634,24 +545,10 @@ $$;
 revoke all on function public.bootstrap_mentions_for_user(uuid, public.source_name[], integer) from public, anon;
 grant execute on function public.bootstrap_mentions_for_user(uuid, public.source_name[], integer) to authenticated, service_role;
 
-drop trigger if exists brand_system_keyword_insert on public.brands;
-create trigger brand_system_keyword_insert
-after insert on public.brands
-for each row execute function public.sync_brand_system_keyword();
 
-drop trigger if exists brand_system_keyword_update on public.brands;
-create trigger brand_system_keyword_update
-after update of name, is_active on public.brands
-for each row execute function public.sync_brand_system_keyword();
-
-drop trigger if exists brand_system_keyword_delete on public.brands;
-create trigger brand_system_keyword_delete
-before delete on public.brands
-for each row execute function public.delete_brand_system_keyword();
 
 alter table public.plan_limits enable row level security;
 alter table public.profiles enable row level security;
-alter table public.brands enable row level security;
 alter table public.keywords enable row level security;
 alter table public.keyword_sources enable row level security;
 alter table public.mentions enable row level security;
@@ -695,17 +592,7 @@ with check (
   or clerk_user_id = public.requesting_user_id()
 );
 
-drop policy if exists "brands_owner_all" on public.brands;
-create policy "brands_owner_all"
-on public.brands for all
-using (
-  user_id = (select auth.uid())
-  or user_id = public.requesting_profile_id()
-)
-with check (
-  user_id = (select auth.uid())
-  or user_id = public.requesting_profile_id()
-);
+
 
 drop policy if exists "keywords_owner_all" on public.keywords;
 create policy "keywords_owner_all"
@@ -807,3 +694,5 @@ create policy "api_rate_limits_service_role_only"
 on public.api_rate_limits for all
 using ((select auth.role()) = 'service_role')
 with check ((select auth.role()) = 'service_role');
+
+
