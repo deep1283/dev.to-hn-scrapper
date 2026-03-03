@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 
 import { requireEntitledAuth } from "@/lib/server/authz"
 import { badRequest, toErrorResponse, tooManyRequests } from "@/lib/server/errors"
+import { bootstrapMentionsAfterOnboarding } from "@/lib/server/mentions-bootstrap"
 import { getRequestIp, parseJsonBody } from "@/lib/server/request"
 import { takeRateLimit } from "@/lib/server/rate-limit"
 import {
@@ -39,6 +40,7 @@ export async function POST(request: NextRequest) {
     }
 
     const profile = auth.profile
+    const shouldBootstrapMentions = !profile.onboarding_completed
 
     assertPlanCounts(profile.plan_tier, brands, keywords)
 
@@ -100,7 +102,15 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    await patchProfile(auth.accessToken, auth.userId, { onboarding_completed: true })
+    const updatedProfile = await patchProfile(auth.accessToken, auth.userId, { onboarding_completed: true })
+    if (shouldBootstrapMentions && updatedProfile.onboarding_completed) {
+      await bootstrapMentionsAfterOnboarding({
+        accessToken: auth.accessToken,
+        userId: auth.userId,
+        brandCount: brands.length,
+        keywordCount: keywords.length,
+      })
+    }
 
     const response = NextResponse.json({
       ok: true,
