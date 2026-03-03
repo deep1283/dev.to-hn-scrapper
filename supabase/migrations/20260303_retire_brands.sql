@@ -1,30 +1,35 @@
 -- Retire brand-based tracking. Keywords are now the single tracking primitive.
 
 -- 1) Migrate existing brand names into keywords so users keep their monitoring terms.
-insert into public.keywords (user_id, query, is_system, is_active)
-select
-  b.user_id,
-  btrim(b.name) as query,
-  false as is_system,
-  b.is_active
-from public.brands b
-where char_length(btrim(b.name)) > 0
-  and not exists (
-    select 1
-    from public.keywords k
-    where k.user_id = b.user_id
-      and lower(btrim(k.query)) = lower(btrim(b.name))
-  );
+do $$
+begin
+  if to_regclass('public.brands') is not null then
+    insert into public.keywords (user_id, query, is_system, is_active)
+    select
+      b.user_id,
+      btrim(b.name) as query,
+      false as is_system,
+      b.is_active
+    from public.brands b
+    where char_length(btrim(b.name)) > 0
+      and not exists (
+        select 1
+        from public.keywords k
+        where k.user_id = b.user_id
+          and lower(btrim(k.query)) = lower(btrim(b.name))
+      );
 
--- If a matching keyword already exists but was inactive, reactivate it when brand was active.
-update public.keywords k
-set is_active = true,
-    updated_at = now()
-from public.brands b
-where b.is_active
-  and k.user_id = b.user_id
-  and lower(btrim(k.query)) = lower(btrim(b.name))
-  and not k.is_active;
+    -- If a matching keyword already exists but was inactive, reactivate it when brand was active.
+    update public.keywords k
+    set is_active = true,
+        updated_at = now()
+    from public.brands b
+    where b.is_active
+      and k.user_id = b.user_id
+      and lower(btrim(k.query)) = lower(btrim(b.name))
+      and not k.is_active;
+  end if;
+end $$;
 
 -- System-keyword distinction is no longer needed.
 update public.keywords
@@ -50,11 +55,16 @@ where k.id = r.id
   and r.rn > 1;
 
 -- 2) Remove brand automation and limits tied to brand table.
-drop trigger if exists brand_system_keyword_insert on public.brands;
-drop trigger if exists brand_system_keyword_update on public.brands;
-drop trigger if exists brand_system_keyword_delete on public.brands;
-drop trigger if exists set_brands_updated_at on public.brands;
-drop trigger if exists enforce_brand_plan_limits on public.brands;
+do $$
+begin
+  if to_regclass('public.brands') is not null then
+    execute 'drop trigger if exists brand_system_keyword_insert on public.brands';
+    execute 'drop trigger if exists brand_system_keyword_update on public.brands';
+    execute 'drop trigger if exists brand_system_keyword_delete on public.brands';
+    execute 'drop trigger if exists set_brands_updated_at on public.brands';
+    execute 'drop trigger if exists enforce_brand_plan_limits on public.brands';
+  end if;
+end $$;
 
 drop function if exists public.sync_brand_system_keyword();
 drop function if exists public.delete_brand_system_keyword();
@@ -102,7 +112,12 @@ before insert or update of user_id, is_active on public.keywords
 for each row execute function public.enforce_plan_limits();
 
 -- 4) Drop brand columns and table dependencies.
-drop policy if exists "brands_owner_all" on public.brands;
+do $$
+begin
+  if to_regclass('public.brands') is not null then
+    execute 'drop policy if exists "brands_owner_all" on public.brands';
+  end if;
+end $$;
 
 drop index if exists public.keywords_brand_id_idx;
 drop index if exists public.mention_matches_brand_id_idx;
