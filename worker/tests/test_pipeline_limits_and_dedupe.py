@@ -126,6 +126,12 @@ class _BudgetDB:
     def fetch_query_cache_entries(self, *_args, **_kwargs):
         return {}
 
+    def try_query_advisory_lock(self, *_args, **_kwargs):
+        return True
+
+    def release_query_advisory_lock(self, *_args, **_kwargs):
+        return None
+
 
 class _FixedSource:
     def __init__(self, mentions: list[MentionCandidate]) -> None:
@@ -177,6 +183,12 @@ class _DedupeDB:
     def upsert_query_cache_entry(self, *_args, **_kwargs):
         return None
 
+    def try_query_advisory_lock(self, *_args, **_kwargs):
+        return True
+
+    def release_query_advisory_lock(self, *_args, **_kwargs):
+        return None
+
 
 class _CacheReuseDB:
     def __init__(self, tasks: list[SourceTask], mention_id: int) -> None:
@@ -212,6 +224,24 @@ class _CacheReuseDB:
 
     def mark_source_task_error(self, *_args, **_kwargs):
         raise AssertionError("mark_source_task_error should not be called for cache hit path")
+
+
+class _QueryLockContentionDB:
+    def __init__(self, tasks: list[SourceTask]) -> None:
+        self._tasks = tasks
+        self.error_calls = 0
+
+    def fetch_due_source_tasks(self, *_args, **_kwargs):
+        return self._tasks
+
+    def fetch_query_cache_entries(self, *_args, **_kwargs):
+        return {}
+
+    def try_query_advisory_lock(self, *_args, **_kwargs):
+        return False
+
+    def mark_source_task_error(self, *_args, **_kwargs):
+        self.error_calls += 1
 
 
 class WorkerPipelineTests(unittest.TestCase):
@@ -337,6 +367,40 @@ class WorkerPipelineTests(unittest.TestCase):
         self.assertEqual(stats.get("source_mentions_fetched", 0), 0)
         self.assertEqual(source_requests_run.get("github_discussions", 0), 0)
         self.assertEqual(fake_db.success_calls, 1)
+
+    def test_query_lock_contention_defers_tasks_without_source_fetch(self) -> None:
+        settings = _make_settings()
+        worker = Worker(settings)
+
+        task = SourceTask(
+            keyword_id=uuid4(),
+            user_id=uuid4(),
+            brand_id=None,
+            query="signalze",
+            source="devto",
+            last_checked_at=None,
+        )
+
+        fake_db = _QueryLockContentionDB([task])
+        worker.db = fake_db  # type: ignore[assignment]
+
+        stats: dict[str, int] = defaultdict(int)
+        source_requests_run: dict[str, int] = defaultdict(int)
+        source_requests_today: dict[str, int] = defaultdict(int)
+
+        worker._process_source_tasks(
+            conn=object(),
+            sources={"devto": _NoFetchSource()},
+            stats=stats,
+            source_requests_run=source_requests_run,
+            source_requests_today=source_requests_today,
+        )
+
+        self.assertEqual(stats["tasks_polled"], 1)
+        self.assertEqual(stats["query_lock_contention"], 1)
+        self.assertEqual(stats["tasks_deferred_query_lock"], 1)
+        self.assertEqual(stats.get("source_mentions_fetched", 0), 0)
+        self.assertEqual(fake_db.error_calls, 1)
 
 
 if __name__ == "__main__":

@@ -10,6 +10,11 @@ import { withSessionCookie } from "@/lib/server/session"
 
 export const dynamic = "force-dynamic"
 const HISTORY_DAYS = 7
+const RATE_LIMITS = {
+  burstPerUserIp: { limit: 8, windowMs: 10_000 },
+  perUserMinute: { limit: 30, windowMs: 60_000 },
+  perIpMinute: { limit: 90, windowMs: 60_000 },
+} as const
 
 type Mention = {
   platform: ActivePlatform
@@ -107,14 +112,40 @@ function limitMentionsPerPlatform(mentions: Mention[], platforms: ActivePlatform
   return selected
 }
 
+async function enforceMentionsRateLimits(userId: string, ip: string): Promise<void> {
+  const burst = await takeRateLimit(
+    `mentions:read:burst:${userId}:${ip}`,
+    RATE_LIMITS.burstPerUserIp.limit,
+    RATE_LIMITS.burstPerUserIp.windowMs,
+  )
+  if (!burst.allowed) {
+    throw tooManyRequests()
+  }
+
+  const perUser = await takeRateLimit(
+    `mentions:read:user:${userId}`,
+    RATE_LIMITS.perUserMinute.limit,
+    RATE_LIMITS.perUserMinute.windowMs,
+  )
+  if (!perUser.allowed) {
+    throw tooManyRequests()
+  }
+
+  const perIp = await takeRateLimit(
+    `mentions:read:ip:${ip}`,
+    RATE_LIMITS.perIpMinute.limit,
+    RATE_LIMITS.perIpMinute.windowMs,
+  )
+  if (!perIp.allowed) {
+    throw tooManyRequests()
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const auth = await requireEntitledAuth(request)
     const ip = getRequestIp(request)
-    const rate = await takeRateLimit(`mentions:read:${auth.userId}:${ip}`, 45, 60_000)
-    if (!rate.allowed) {
-      throw tooManyRequests()
-    }
+    await enforceMentionsRateLimits(auth.userId, ip)
 
     const body = await parseJsonBody<MentionBody>(request)
     const platforms = parsePlatforms(body.platforms, 10)

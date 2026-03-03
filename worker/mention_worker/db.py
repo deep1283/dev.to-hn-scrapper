@@ -54,6 +54,36 @@ class Database:
         return bool(row and row["locked"])
 
     @staticmethod
+    def try_query_advisory_lock(
+        conn: psycopg.Connection[Any],
+        *,
+        source: str,
+        normalized_query: str,
+    ) -> bool:
+        lock_key = f"{source}:{normalized_query}"
+        with conn.cursor() as cur:
+            cur.execute(
+                "select pg_try_advisory_lock(hashtextextended(%s, 0)) as locked",
+                (lock_key,),
+            )
+            row = cur.fetchone()
+        return bool(row and row["locked"])
+
+    @staticmethod
+    def release_query_advisory_lock(
+        conn: psycopg.Connection[Any],
+        *,
+        source: str,
+        normalized_query: str,
+    ) -> None:
+        lock_key = f"{source}:{normalized_query}"
+        with conn.cursor() as cur:
+            cur.execute(
+                "select pg_advisory_unlock(hashtextextended(%s, 0))",
+                (lock_key,),
+            )
+
+    @staticmethod
     def create_worker_run(conn: psycopg.Connection[Any]) -> UUID:
         with conn.cursor() as cur:
             cur.execute(

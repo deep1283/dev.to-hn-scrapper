@@ -171,35 +171,60 @@ class Worker:
                         stats["tasks_deferred_budget"] += len(task_group)
                         continue
 
-                    fetch_since = self._source_fetch_since(
-                        source=source,
-                        now=datetime.now(tz=timezone.utc),
-                        cache_last_fetched_at=cache_entry.last_fetched_at if cache_entry else None,
-                    )
-                    mentions = source_client.search(
-                        representative_query,
-                        since=fetch_since,
-                        limit=self.settings.per_source_limit,
-                    )
-                    source_requests_today[source] = source_requests_today.get(source, 0) + 1
-                    source_requests_run[source] = source_requests_run.get(source, 0) + 1
-                    stats["source_mentions_fetched"] += len(mentions)
-
-                    for mention in mentions:
-                        self.db.upsert_mention(conn, mention)
-                        stats["mentions_upserted"] += 1
-                    fetched_at = datetime.now(tz=timezone.utc)
-                    self.db.upsert_query_cache_entry(
+                    has_query_lock = self.db.try_query_advisory_lock(
                         conn,
                         source=source,
                         normalized_query=normalized_query,
-                        fetched_at=fetched_at,
                     )
-                    query_cache[(source, normalized_query)] = QueryCacheEntry(
-                        source=source,
-                        normalized_query=normalized_query,
-                        last_fetched_at=fetched_at,
-                    )
+                    if not has_query_lock:
+                        for task, _ in task_group:
+                            self.db.mark_source_task_error(
+                                conn,
+                                keyword_id=task.keyword_id,
+                                source=task.source,
+                                error="Query refresh already in progress by another worker",
+                                backoff_minutes=2,
+                            )
+                        stats["tasks_deferred_query_lock"] += len(task_group)
+                        stats["query_lock_contention"] += 1
+                        continue
+
+                    try:
+                        fetch_since = self._source_fetch_since(
+                            source=source,
+                            now=datetime.now(tz=timezone.utc),
+                            cache_last_fetched_at=cache_entry.last_fetched_at if cache_entry else None,
+                        )
+                        mentions = source_client.search(
+                            representative_query,
+                            since=fetch_since,
+                            limit=self.settings.per_source_limit,
+                        )
+                        source_requests_today[source] = source_requests_today.get(source, 0) + 1
+                        source_requests_run[source] = source_requests_run.get(source, 0) + 1
+                        stats["source_mentions_fetched"] += len(mentions)
+
+                        for mention in mentions:
+                            self.db.upsert_mention(conn, mention)
+                            stats["mentions_upserted"] += 1
+                        fetched_at = datetime.now(tz=timezone.utc)
+                        self.db.upsert_query_cache_entry(
+                            conn,
+                            source=source,
+                            normalized_query=normalized_query,
+                            fetched_at=fetched_at,
+                        )
+                        query_cache[(source, normalized_query)] = QueryCacheEntry(
+                            source=source,
+                            normalized_query=normalized_query,
+                            last_fetched_at=fetched_at,
+                        )
+                    finally:
+                        self.db.release_query_advisory_lock(
+                            conn,
+                            source=source,
+                            normalized_query=normalized_query,
+                        )
                 else:
                     stats["query_cache_hits"] += 1
 

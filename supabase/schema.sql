@@ -2,6 +2,7 @@
 -- Apply this in Supabase SQL editor or via migrations.
 
 create extension if not exists pgcrypto;
+create extension if not exists pg_trgm;
 
 create type public.plan_tier as enum ('starter_9', 'growth_15');
 create type public.source_name as enum (
@@ -123,6 +124,18 @@ create table if not exists public.mentions (
 
 create index if not exists mentions_platform_published_idx
   on public.mentions(platform, published_at desc);
+
+create index if not exists mentions_title_trgm_idx
+  on public.mentions using gin (lower(coalesce(title, '')) gin_trgm_ops);
+
+create index if not exists mentions_body_excerpt_trgm_idx
+  on public.mentions using gin (lower(coalesce(body_excerpt, '')) gin_trgm_ops);
+
+create index if not exists mentions_author_trgm_idx
+  on public.mentions using gin (lower(coalesce(author, '')) gin_trgm_ops);
+
+create index if not exists mentions_community_trgm_idx
+  on public.mentions using gin (lower(coalesce(community, '')) gin_trgm_ops);
 
 create table if not exists public.mention_matches (
   id bigint generated always as identity primary key,
