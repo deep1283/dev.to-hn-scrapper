@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next'
+import { resolveSiteUrl } from "@/lib/site-url"
 
-const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000').replace(/\/+$/, '')
+const appUrl = resolveSiteUrl()
 
 export default function robots(): MetadataRoute.Robots {
   return {
@@ -8,6 +9,17 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: '*',
         allow: '/',
+        disallow: [
+          "/api/",
+          "/dashboard",
+          "/settings",
+          "/onboarding",
+          "/upgrade",
+          "/login",
+          "/sign-in",
+          "/sign-up",
+          "/auth/",
+        ],
       },
     ],
     sitemap: `${appUrl}/sitemap.xml`,

@@ -7,6 +7,15 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "/terms",
   },
+  openGraph: {
+    url: "/terms",
+    title: "Signalze Terms and Conditions",
+    description: "Terms and conditions for using Signalze.",
+  },
+  twitter: {
+    title: "Signalze Terms and Conditions",
+    description: "Terms and conditions for using Signalze.",
+  },
 }
 
 export default function TermsPage() {

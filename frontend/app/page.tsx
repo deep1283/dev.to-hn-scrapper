@@ -1,3 +1,5 @@
+import type { Metadata } from "next"
+
 import { Navbar } from "@/components/landing/navbar"
 import { Hero } from "@/components/landing/hero"
 import { HowItWorks } from "@/components/landing/how-it-works"
@@ -5,8 +7,21 @@ import { Platforms } from "@/components/landing/platforms"
 import { Features } from "@/components/landing/features"
 import { UseCases } from "@/components/landing/use-cases"
 import { CTAFooter } from "@/components/landing/cta-footer"
+import { PLAN_CONFIG } from "@/lib/plans"
+import { resolveSiteUrl } from "@/lib/site-url"
 
-const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/+$/, "")
+export const metadata: Metadata = {
+  alternates: {
+    canonical: "/",
+  },
+}
+
+const appUrl = resolveSiteUrl()
+
+function parsePrice(value: string): string {
+  const matched = value.match(/\d+(\.\d+)?/)
+  return matched?.[0] ?? "0"
+}
 
 const structuredData = {
   "@context": "https://schema.org",
@@ -27,15 +42,15 @@ const structuredData = {
       offers: [
         {
           "@type": "Offer",
-          price: "5",
+          price: parsePrice(PLAN_CONFIG.starter_9.price),
           priceCurrency: "USD",
-          name: "Starter",
+          name: PLAN_CONFIG.starter_9.name,
         },
         {
           "@type": "Offer",
-          price: "9",
+          price: parsePrice(PLAN_CONFIG.growth_15.price),
           priceCurrency: "USD",
-          name: "Pro",
+          name: PLAN_CONFIG.growth_15.name,
         },
       ],
     },

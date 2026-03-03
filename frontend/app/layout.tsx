@@ -1,23 +1,10 @@
 import type { Metadata } from 'next'
 import { ClerkProvider } from "@clerk/nextjs"
 import { Analytics } from '@vercel/analytics/next'
+import { resolveSiteUrl } from "@/lib/site-url"
 import './globals.css'
 
-function resolveAppUrl(): string {
-  const raw = process.env.NEXT_PUBLIC_APP_URL?.trim()
-  if (!raw) {
-    return 'http://localhost:3000'
-  }
-
-  const withProtocol = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`
-  try {
-    return new URL(withProtocol).toString().replace(/\/+$/, '')
-  } catch {
-    return 'http://localhost:3000'
-  }
-}
-
-const appUrl = resolveAppUrl()
+const appUrl = resolveSiteUrl()
 const metadataBase = new URL(appUrl)
 const hasClerk = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)
 const defaultTitle = 'Signalze | Monitor HN, Dev.to, and GitHub Discussions'
@@ -32,9 +19,6 @@ export const metadata: Metadata = {
   },
   description: defaultDescription,
   applicationName: 'Signalze',
-  alternates: {
-    canonical: '/',
-  },
   keywords: [
     'brand monitoring',
     'mention tracking',
@@ -55,10 +39,10 @@ export const metadata: Metadata = {
     locale: 'en_US',
     images: [
       {
-        url: '/logo.png',
-        width: 640,
-        height: 640,
-        alt: 'Signalze logo',
+        url: '/opengraph-image',
+        width: 1200,
+        height: 630,
+        alt: 'Signalze social preview',
       },
     ],
   },
@@ -66,7 +50,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: defaultTitle,
     description: defaultDescription,
-    images: ['/logo.png'],
+    images: ['/opengraph-image'],
   },
   robots: {
     index: true,

@@ -7,6 +7,15 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "/contact",
   },
+  openGraph: {
+    url: "/contact",
+    title: "Contact Signalze",
+    description: "Contact Signalze for support or product questions.",
+  },
+  twitter: {
+    title: "Contact Signalze",
+    description: "Contact Signalze for support or product questions.",
+  },
 }
 
 function XLogo({ className = "h-4 w-4" }: { className?: string }) {

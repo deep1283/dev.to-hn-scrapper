@@ -7,6 +7,15 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "/privacy",
   },
+  openGraph: {
+    url: "/privacy",
+    title: "Signalze Privacy Policy",
+    description: "Privacy policy for Signalze.",
+  },
+  twitter: {
+    title: "Signalze Privacy Policy",
+    description: "Privacy policy for Signalze.",
+  },
 }
 
 export default function PrivacyPage() {
