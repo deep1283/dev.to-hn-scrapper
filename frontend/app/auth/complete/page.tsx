@@ -90,6 +90,17 @@ function AuthCompleteContent() {
     const plan = searchParams.get("plan")
     return plan && isPlanId(plan) ? plan : null
   }, [searchParams])
+  const reauthHref = useMemo(() => {
+    const params = new URLSearchParams()
+    params.set("reauth", "1")
+    if (safeNext) {
+      params.set("next", safeNext)
+    }
+    if (selectedPlan) {
+      params.set("plan", selectedPlan)
+    }
+    return `/sign-in?${params.toString()}`
+  }, [safeNext, selectedPlan])
 
   useEffect(() => {
     if (didRun.current) {
@@ -124,7 +135,7 @@ function AuthCompleteContent() {
           <h1 className="font-serif text-2xl text-foreground">Sign-in failed</h1>
           <p className="mt-2 text-sm text-muted-foreground">{error}</p>
           <Link
-            href="/sign-in"
+            href={reauthHref}
             className="mt-5 inline-flex h-10 items-center justify-center rounded-full bg-accent px-5 text-sm font-semibold text-accent-foreground"
           >
             Back to sign in

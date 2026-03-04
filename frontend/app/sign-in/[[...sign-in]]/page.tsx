@@ -79,6 +79,7 @@ export default function SignInPage() {
 
   const next = searchParams.get("next")
   const plan = searchParams.get("plan")
+  const shouldForceReauth = searchParams.get("reauth") === "1"
 
   const redirectAfterAuth = useMemo(() => {
     const params = new URLSearchParams()
@@ -94,6 +95,20 @@ export default function SignInPage() {
     return params.toString() ? `/auth/complete?${params.toString()}` : "/auth/complete"
   }, [next, plan])
 
+  const redirectAfterSessionReset = useMemo(() => {
+    const params = new URLSearchParams()
+
+    if (next && next.startsWith("/")) {
+      params.set("next", next)
+    }
+
+    if (plan && isPlanId(plan)) {
+      params.set("plan", plan)
+    }
+
+    return params.toString() ? `/sign-in?${params.toString()}` : "/sign-in"
+  }, [next, plan])
+
   useEffect(() => {
     if (!isAuthLoaded) {
       return
@@ -104,6 +119,11 @@ export default function SignInPage() {
       return
     }
 
+    if (!shouldForceReauth) {
+      router.replace(redirectAfterAuth)
+      return
+    }
+
     if (didResetSessionRef.current) {
       return
     }
@@ -111,12 +131,12 @@ export default function SignInPage() {
     didResetSessionRef.current = true
     setIsResettingSession(true)
     void clerk
-      .signOut()
+      .signOut({ redirectUrl: redirectAfterSessionReset })
       .catch(() => undefined)
       .finally(() => {
         setIsResettingSession(false)
       })
-  }, [clerk, isAuthLoaded, isSignedIn])
+  }, [clerk, isAuthLoaded, isSignedIn, redirectAfterAuth, redirectAfterSessionReset, router, shouldForceReauth])
 
   async function postPreflight<T>(url: string, body: Record<string, unknown>): Promise<T> {
     const response = await fetch(url, {
@@ -143,9 +163,14 @@ export default function SignInPage() {
     }
 
     if (isSignedIn) {
+      if (!shouldForceReauth) {
+        router.replace(redirectAfterAuth)
+        return
+      }
+
       setIsResettingSession(true)
       await clerk
-        .signOut()
+        .signOut({ redirectUrl: redirectAfterSessionReset })
         .catch(() => undefined)
         .finally(() => {
           setIsResettingSession(false)
