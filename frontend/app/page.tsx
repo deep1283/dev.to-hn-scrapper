@@ -6,6 +6,7 @@ import { HowItWorks } from "@/components/landing/how-it-works"
 import { Platforms } from "@/components/landing/platforms"
 import { Features } from "@/components/landing/features"
 import { UseCases } from "@/components/landing/use-cases"
+import { PricingSection } from "@/components/landing/pricing-section"
 import { CTAFooter } from "@/components/landing/cta-footer"
 import { PLAN_CONFIG } from "@/lib/plans"
 import { resolveSiteUrl } from "@/lib/site-url"
@@ -70,6 +71,7 @@ export default function Home() {
       <Platforms />
       <Features />
       <UseCases />
+      <PricingSection />
       <CTAFooter />
     </main>
   )

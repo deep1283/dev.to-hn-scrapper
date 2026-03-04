@@ -4,7 +4,7 @@ import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Suspense, useEffect, useMemo, useRef, useState } from "react"
 
-import { isPlanId } from "@/lib/plans"
+
 
 type SessionPayload = {
   nextRoute?: string
@@ -33,21 +33,7 @@ function getSafeNext(next: string | null): string | null {
   return next
 }
 
-async function startTrial(planId: string) {
-  const response = await fetch("/api/billing/start-trial", {
-    method: "POST",
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ plan: planId }),
-  })
 
-  const payload = (await response.json().catch(() => null)) as { error?: string } | null
-  if (!response.ok) {
-    throw new Error(payload?.error ?? "Unable to start free trial.")
-  }
-}
 
 async function loadSessionWithRetry(): Promise<SessionPayload> {
   for (let attempt = 0; attempt < SESSION_RETRY_ATTEMPTS; attempt += 1) {
@@ -86,21 +72,14 @@ function AuthCompleteContent() {
   const [error, setError] = useState<string | null>(null)
 
   const safeNext = useMemo(() => getSafeNext(searchParams.get("next")), [searchParams])
-  const selectedPlan = useMemo(() => {
-    const plan = searchParams.get("plan")
-    return plan && isPlanId(plan) ? plan : null
-  }, [searchParams])
   const reauthHref = useMemo(() => {
     const params = new URLSearchParams()
     params.set("reauth", "1")
     if (safeNext) {
       params.set("next", safeNext)
     }
-    if (selectedPlan) {
-      params.set("plan", selectedPlan)
-    }
     return `/sign-in?${params.toString()}`
-  }, [safeNext, selectedPlan])
+  }, [safeNext])
 
   useEffect(() => {
     if (didRun.current) {
@@ -112,12 +91,6 @@ function AuthCompleteContent() {
       try {
         const payload = await loadSessionWithRetry()
 
-        if (selectedPlan && !payload.profile?.plan_selected_at) {
-          await startTrial(selectedPlan)
-          router.replace("/onboarding")
-          return
-        }
-
         const destination = payload.nextRoute === "/dashboard" && safeNext ? safeNext : payload.nextRoute ?? "/dashboard"
         router.replace(destination)
       } catch (finalizeError) {
@@ -126,7 +99,7 @@ function AuthCompleteContent() {
     }
 
     void finalize()
-  }, [router, safeNext, selectedPlan])
+  }, [router, safeNext])
 
   if (error) {
     return (

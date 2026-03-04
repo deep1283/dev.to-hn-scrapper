@@ -22,6 +22,24 @@ function PricingLoading() {
   )
 }
 
+async function startTrial(planId: string): Promise<{ nextRoute?: string }> {
+  const response = await fetch("/api/billing/start-trial", {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ plan: planId }),
+  })
+
+  const payload = (await response.json().catch(() => null)) as { error?: string; nextRoute?: string } | null
+  if (!response.ok) {
+    throw new Error(payload?.error ?? "Unable to start free trial.")
+  }
+
+  return { nextRoute: payload?.nextRoute }
+}
+
 function PricingContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -33,17 +51,16 @@ function PricingContent() {
   const [ready, setReady] = useState(false)
   const [session, setSession] = useState<SessionData | null>(null)
   const [currentPlan, setCurrentPlan] = useState<PlanId | null>(null)
+  const [isStartingTrial, setIsStartingTrial] = useState<PlanId | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     async function bootstrap() {
       try {
         const validSession = await getValidSession()
         if (!validSession) {
-          if (manageMode) {
-            router.replace(AUTH_ENTRY_PATH)
-            return
-          }
-          setReady(true)
+          // Not authenticated — redirect to login
+          router.replace(AUTH_ENTRY_PATH)
           return
         }
 
@@ -51,16 +68,19 @@ function PricingContent() {
         const profile = await ensureProfile(validSession)
         setCurrentPlan(profile.plan_tier)
 
+        // New user: no plan selected yet — show plan selection
         if (!profile.plan_selected_at) {
           setReady(true)
           return
         }
 
+        // Manage mode: let them switch plans
         if (manageMode) {
           setReady(true)
           return
         }
 
+        // Has a plan and not in manage mode — redirect away
         if (isTrialExpired(profile.billing_mode, profile.trial_ends_at)) {
           router.replace("/upgrade")
           return
@@ -74,6 +94,18 @@ function PricingContent() {
     void bootstrap()
   }, [manageMode, router])
 
+  async function handleStartTrial(planId: PlanId) {
+    setError(null)
+    setIsStartingTrial(planId)
+    try {
+      const result = await startTrial(planId)
+      router.replace(result.nextRoute ?? "/onboarding")
+    } catch (trialError) {
+      setError(trialError instanceof Error ? trialError.message : "Unable to start trial.")
+      setIsStartingTrial(null)
+    }
+  }
+
   if (!ready) {
     return <PricingLoading />
   }
@@ -86,16 +118,22 @@ function PricingContent() {
           <Link href="/" className="font-serif text-xl font-bold text-foreground">
             signalze
           </Link>
-          <p className="mt-6 font-handwriting text-lg text-primary">{manageMode ? "Manage plan" : "Pricing"}</p>
+          <p className="mt-6 font-handwriting text-lg text-primary">{manageMode ? "Manage plan" : "Choose your plan"}</p>
           <h1 className="mt-2 font-serif text-3xl text-foreground sm:text-5xl text-balance">
-            {manageMode ? "Choose a different plan" : "Simple, honest pricing"}
+            {manageMode ? "Choose a different plan" : "Start your 2-day free trial"}
           </h1>
           <p className="mt-4 max-w-xl text-base text-muted-foreground">
             {manageMode
               ? "Switch plans anytime. Your selection will be applied after checkout confirmation."
-              : "Track mentions for your keywords across Hacker News, Dev.to, and GitHub Discussions. Start with a 2-day free trial."}
+              : "Pick a plan and start tracking mentions across Hacker News, Dev.to, and GitHub Discussions."}
           </p>
         </div>
+
+        {error ? (
+          <p className="max-w-2xl rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            {error}
+          </p>
+        ) : null}
 
         {manageMode && planChange ? (
           <p
@@ -189,23 +227,24 @@ function PricingContent() {
                     </Link>
                   )
                 ) : (
-                  <Link
-                    href={`${AUTH_ENTRY_PATH}?plan=${plan.id}`}
-                    className={`mt-auto inline-flex h-12 w-full items-center justify-center rounded-full px-6 text-sm font-semibold transition-all active:scale-[0.98] ${
+                  <button
+                    onClick={() => void handleStartTrial(planId)}
+                    disabled={isStartingTrial !== null}
+                    className={`mt-auto inline-flex h-12 w-full items-center justify-center rounded-full px-6 text-sm font-semibold transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 ${
                       isPopular
                         ? "bg-accent text-accent-foreground hover:brightness-95"
                         : "border border-border text-foreground hover:bg-secondary"
                     }`}
                   >
-                    Start 2-day free trial
-                  </Link>
+                    {isStartingTrial === planId ? "Starting trial..." : "Start 2-day free trial"}
+                  </button>
                 )}
               </article>
             )
           })}
         </div>
 
-        {/* Login link */}
+        {/* Bottom link */}
         {manageMode ? (
           <p className="text-center text-sm text-muted-foreground">
             Done comparing plans?{" "}
@@ -213,14 +252,7 @@ function PricingContent() {
               Back to settings
             </Link>
           </p>
-        ) : (
-          <p className="text-center text-sm text-muted-foreground">
-            Already have an account?{" "}
-            <Link href={AUTH_ENTRY_PATH} className="font-medium text-foreground hover:underline">
-              Log in
-            </Link>
-          </p>
-        )}
+        ) : null}
       </div>
     </main>
   )

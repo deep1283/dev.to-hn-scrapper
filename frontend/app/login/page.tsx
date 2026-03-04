@@ -7,14 +7,9 @@ import { FormEvent, Suspense, useEffect, useState } from "react"
 
 import { BrandIllustration } from "@/components/auth/brand-illustration"
 import { isTrialExpired } from "@/lib/client/billing"
-import { isPlanId } from "@/lib/plans"
 import { ensureProfile, getValidSession } from "@/lib/supabase-lite"
 
 const hasClerk = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)
-
-type StartTrialResponse = {
-  nextRoute?: string
-}
 
 type MagicLinkResponse = {
   ok?: boolean
@@ -38,24 +33,6 @@ function getSafeNext(next: string | null): string | null {
   }
 
   return next
-}
-
-async function startTrial(planId: string): Promise<StartTrialResponse> {
-  const response = await fetch("/api/billing/start-trial", {
-    method: "POST",
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ plan: planId }),
-  })
-
-  const payload = (await response.json().catch(() => null)) as { error?: string; nextRoute?: string } | null
-  if (!response.ok) {
-    throw new Error(payload?.error ?? "Unable to start free trial.")
-  }
-
-  return { nextRoute: payload?.nextRoute }
 }
 
 async function sendMagicLink(email: string, plan: string | null): Promise<MagicLinkResponse> {
@@ -113,9 +90,6 @@ function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
-  const planParam = searchParams.get("plan")
-  const isCheckoutReturn = searchParams.get("checkout") === "return"
-  const preSelectedPlan = !isCheckoutReturn && isPlanId(planParam) ? planParam : null
   const safeNext = getSafeNext(searchParams.get("next"))
 
   const [email, setEmail] = useState("")
@@ -141,12 +115,6 @@ function LoginForm() {
         }
 
         const profile = await ensureProfile(session)
-        if (!profile.plan_selected_at && preSelectedPlan) {
-          await startTrial(preSelectedPlan)
-          router.replace("/onboarding")
-          return
-        }
-
         if (!profile.plan_selected_at) {
           router.replace("/pricing")
           return
@@ -171,7 +139,7 @@ function LoginForm() {
     }
 
     void bootstrap()
-  }, [preSelectedPlan, router, safeNext])
+  }, [router, safeNext])
 
   async function handleSendMagicLink(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -181,7 +149,7 @@ function LoginForm() {
 
     try {
       const normalizedEmail = email.trim().toLowerCase()
-      const response = await sendMagicLink(normalizedEmail, preSelectedPlan)
+      const response = await sendMagicLink(normalizedEmail, null)
       setSuccessMessage(response.message ?? "Magic link sent. Check your inbox and spam folder.")
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Unable to send magic link")
@@ -194,8 +162,7 @@ function LoginForm() {
     setError(null)
     setSuccessMessage(null)
     setIsGoogleRedirecting(true)
-    const query = preSelectedPlan ? `?plan=${encodeURIComponent(preSelectedPlan)}` : ""
-    window.location.href = `/api/auth/oauth/google${query}`
+    window.location.href = `/api/auth/oauth/google`
   }
 
   async function handlePasswordSignIn(event: FormEvent<HTMLFormElement>) {
@@ -213,13 +180,6 @@ function LoginForm() {
         throw new Error("Enter a valid password.")
       }
       const payload = await signInWithPasswordFallback(normalizedEmail, password)
-
-      if (preSelectedPlan && !payload.profile?.plan_selected_at) {
-        const trial = await startTrial(preSelectedPlan)
-        router.replace(trial.nextRoute ?? "/onboarding")
-        return
-      }
-
       router.replace(payload.nextRoute ?? "/dashboard")
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Unable to sign in with password.")
@@ -273,16 +233,10 @@ function LoginForm() {
           </Link>
 
           <div className="mt-8">
-            <p className="font-handwriting text-lg text-primary">
-              {preSelectedPlan ? "Continue setup" : "Welcome back"}
-            </p>
-            <h1 className="mt-1 font-serif text-2xl text-foreground sm:text-4xl">
-              {preSelectedPlan ? "Start your free trial" : "Sign in"}
-            </h1>
+            <p className="font-handwriting text-lg text-primary">Welcome back</p>
+            <h1 className="mt-1 font-serif text-2xl text-foreground sm:text-4xl">Sign in</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              {preSelectedPlan
-                ? "Continue with Google or a magic link to activate your 2-day trial."
-                : "Use Google or a passwordless magic link to continue."}
+              Use Google or a passwordless magic link to continue.
             </p>
           </div>
 
@@ -366,12 +320,7 @@ function LoginForm() {
             </button>
           </form>
 
-          <p className="mt-6 text-center text-sm text-muted-foreground">
-            Need to compare plans first?{" "}
-            <Link href="/pricing" className="font-medium text-foreground hover:underline">
-              View pricing
-            </Link>
-          </p>
+
         </div>
       </div>
     </main>

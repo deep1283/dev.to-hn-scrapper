@@ -237,7 +237,7 @@ export default function DashboardPage() {
     if (clerk?.signOut) {
       await clerk.signOut().catch(() => undefined)
     }
-    window.location.replace(AUTH_ENTRY_PATH)
+    window.location.replace("/")
   }
 
   if (isLoading) {

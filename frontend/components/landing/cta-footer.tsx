@@ -3,6 +3,8 @@ import Image from "next/image"
 import Link from "next/link"
 import { Reveal } from "@/components/landing/reveal"
 
+const AUTH_ENTRY_PATH = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ? "/sign-in" : "/login"
+
 function XLogo({ className = "h-4 w-4" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" className={className} fill="currentColor">
@@ -33,11 +35,17 @@ export function CTAFooter() {
               Dev.to, and GitHub Discussions conversation about their brand.
             </p>
             <Link
-              href="/pricing"
+              href={AUTH_ENTRY_PATH}
               className="mt-8 inline-flex items-center gap-2 rounded-full bg-accent px-8 py-3.5 text-sm font-semibold text-accent-foreground transition-all hover:brightness-95 active:scale-[0.98]"
             >
               Start 2-day trial <ArrowRight className="h-4 w-4" />
             </Link>
+            <p className="mt-4 text-sm text-muted-foreground">
+              Need app pilot testing?{" "}
+              <Link href="/pilot-testing" className="font-medium text-foreground underline underline-offset-4">
+                $4 per session
+              </Link>
+            </p>
           </div>
         </Reveal>
       </section>
@@ -68,10 +76,16 @@ export function CTAFooter() {
             </Link>
 
             <Link
-              href="/pricing"
+              href="/#pricing"
               className="text-sm text-muted-foreground transition-colors hover:text-foreground"
             >
               Pricing
+            </Link>
+            <Link
+              href="/pilot-testing"
+              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Pilot testing
             </Link>
             <Link
               href="/privacy"

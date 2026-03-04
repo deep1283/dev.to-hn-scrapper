@@ -7,7 +7,8 @@ import Link from "next/link"
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
 
 const navLinks = [
-  { href: "/pricing", label: "Pricing" },
+  { href: "#pricing", label: "Pricing" },
+  { href: "/pilot-testing", label: "Pilot Testing" },
   { href: "/contact", label: "Contact" },
   { href: "#features", label: "Features" },
 ]

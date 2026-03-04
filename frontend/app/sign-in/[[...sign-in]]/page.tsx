@@ -7,7 +7,6 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from "react"
 import { useAuth, useClerk, useSignIn, useSignUp } from "@clerk/nextjs"
 
 import { BrandIllustration } from "@/components/auth/brand-illustration"
-import { isPlanId } from "@/lib/plans"
 
 const AUTH_PROVIDER_TIMEOUT_MS = 20000
 const AUTH_PROVIDER_TIMEOUT_ERROR = "auth_provider_timeout"
@@ -78,7 +77,6 @@ export default function SignInPage() {
   const didResetSessionRef = useRef(false)
 
   const next = searchParams.get("next")
-  const plan = searchParams.get("plan")
   const shouldForceReauth = searchParams.get("reauth") === "1"
 
   const redirectAfterAuth = useMemo(() => {
@@ -88,12 +86,8 @@ export default function SignInPage() {
       params.set("next", next)
     }
 
-    if (plan && isPlanId(plan)) {
-      params.set("plan", plan)
-    }
-
     return params.toString() ? `/auth/complete?${params.toString()}` : "/auth/complete"
-  }, [next, plan])
+  }, [next])
 
   const redirectAfterSessionReset = useMemo(() => {
     const params = new URLSearchParams()
@@ -102,12 +96,8 @@ export default function SignInPage() {
       params.set("next", next)
     }
 
-    if (plan && isPlanId(plan)) {
-      params.set("plan", plan)
-    }
-
     return params.toString() ? `/sign-in?${params.toString()}` : "/sign-in"
-  }, [next, plan])
+  }, [next])
 
   useEffect(() => {
     if (!isAuthLoaded) {
@@ -431,12 +421,7 @@ export default function SignInPage() {
 
             </form>
 
-            <p className="mt-6 text-center text-sm text-muted-foreground">
-              Need to compare plans first?{" "}
-              <Link href="/pricing" className="font-medium text-foreground hover:underline">
-                View pricing
-              </Link>
-            </p>
+
           </div>
         </div>
       </main>

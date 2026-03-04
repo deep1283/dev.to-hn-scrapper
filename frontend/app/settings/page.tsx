@@ -213,7 +213,7 @@ export default function SettingsPage() {
     if (clerk?.signOut) {
       await clerk.signOut().catch(() => undefined)
     }
-    window.location.replace(AUTH_ENTRY_PATH)
+    window.location.replace("/")
   }
 
   async function refreshSlackStatus() {
