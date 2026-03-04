@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
 
     assertPlanCounts(profile.plan_tier, unifiedTerms)
 
-    const existingKeywords = await listKeywords(auth.accessToken, auth.userId, true, false)
+    const existingKeywords = await listKeywords(auth.accessToken, auth.userId, true)
     const keywordByLower = new Map(existingKeywords.map((keyword) => [keyword.query.toLowerCase(), keyword]))
 
     for (const keyword of unifiedTerms) {

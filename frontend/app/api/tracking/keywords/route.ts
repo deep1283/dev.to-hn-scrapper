@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
   try {
     const auth = await requireEntitledAuth(request)
     const includeInactive = request.nextUrl.searchParams.get("includeInactive") === "true"
-    const keywords = await listKeywords(auth.accessToken, auth.userId, includeInactive, false)
+    const keywords = await listKeywords(auth.accessToken, auth.userId, includeInactive)
     const response = NextResponse.json({ keywords })
     return withSessionCookie(response, auth.sessionResult)
   } catch (error) {
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
       throw badRequest("Keyword must be between 2 and 120 characters.")
     }
 
-    const existingKeywords = await listKeywords(auth.accessToken, auth.userId, true, false)
+    const existingKeywords = await listKeywords(auth.accessToken, auth.userId, true)
     const existing = existingKeywords.find((keyword) => keyword.query.toLowerCase() === query.toLowerCase())
     if (existing?.is_active) {
       const response = NextResponse.json({ keyword: existing })
@@ -100,7 +100,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     if (patch.is_active) {
-      const existingKeywords = await listKeywords(auth.accessToken, auth.userId, true, false)
+      const existingKeywords = await listKeywords(auth.accessToken, auth.userId, true)
       const activeCount = existingKeywords.filter((keyword) => keyword.is_active && keyword.id !== body.id).length
       const plan = PLAN_CONFIG[auth.profile.plan_tier]
       if (activeCount >= plan.maxKeywords) {

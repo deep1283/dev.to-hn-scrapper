@@ -8,7 +8,7 @@ import { withSessionCookie } from "@/lib/server/session"
 export async function GET(request: NextRequest) {
   try {
     const auth = await requireEntitledAuth(request)
-    const keywords = await listKeywords(auth.accessToken, auth.userId, false, false)
+    const keywords = await listKeywords(auth.accessToken, auth.userId, false)
 
     const nextRoute = !auth.profile.onboarding_completed ? "/onboarding" : "/dashboard"
 

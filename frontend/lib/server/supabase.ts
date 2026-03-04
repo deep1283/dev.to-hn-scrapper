@@ -44,7 +44,6 @@ export type KeywordRow = {
   id: string
   query: string
   is_active: boolean
-  is_system: boolean
 }
 
 function baseHeaders(accessToken?: string): Record<string, string> {
@@ -491,14 +490,12 @@ export async function listKeywords(
   accessToken: string,
   userId: string,
   includeInactive = false,
-  includeSystem = false,
 ): Promise<KeywordRow[]> {
   const activeFilter = includeInactive ? "" : "&is_active=is.true"
-  const systemFilter = includeSystem ? "" : "&is_system=is.false"
   return restRequest<KeywordRow[]>(
     `/keywords?user_id=eq.${encodeURIComponent(
       userId,
-    )}${systemFilter}${activeFilter}&select=id,query,is_active,is_system&order=created_at.asc`,
+    )}${activeFilter}&select=id,query,is_active&order=created_at.asc`,
     accessToken,
   )
 }
@@ -506,7 +503,7 @@ export async function listKeywords(
 export async function insertKeyword(accessToken: string, userId: string, query: string): Promise<KeywordRow> {
   const rows = await restRequest<KeywordRow[]>(`/keywords`, accessToken, {
     method: "POST",
-    body: JSON.stringify([{ user_id: userId, query, is_active: true, is_system: false }]),
+    body: JSON.stringify([{ user_id: userId, query, is_active: true }]),
   })
   if (!rows[0]) {
     throw new AppError(400, "Failed to create keyword.")

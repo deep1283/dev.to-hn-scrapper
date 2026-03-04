@@ -27,7 +27,6 @@ export type KeywordRow = {
   id: string
   query: string
   is_active: boolean
-  is_system: boolean
 }
 
 type SessionPayload = {
