@@ -206,15 +206,13 @@ export default function SettingsPage() {
 
   async function handleLogout() {
     const clerk = (window as { Clerk?: { signOut?: (options?: { redirectUrl?: string }) => Promise<void> } }).Clerk
-    if (clerk?.signOut) {
-      await clerk.signOut({ redirectUrl: AUTH_ENTRY_PATH })
-      return
-    }
-
     await fetch("/api/auth/logout", {
       method: "POST",
       credentials: "include",
     }).catch(() => undefined)
+    if (clerk?.signOut) {
+      await clerk.signOut().catch(() => undefined)
+    }
     window.location.replace(AUTH_ENTRY_PATH)
   }
 
