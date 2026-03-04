@@ -4,7 +4,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react"
-import { useAuth, useSignIn, useSignUp } from "@clerk/nextjs"
+import { useAuth, useClerk, useSignIn, useSignUp } from "@clerk/nextjs"
 
 import { BrandIllustration } from "@/components/auth/brand-illustration"
 import { isPlanId } from "@/lib/plans"
@@ -58,6 +58,7 @@ export default function SignInPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const authState = useAuth()
+  const clerk = useClerk()
   const signInState = useSignIn()
   const signUpState = useSignUp()
   const isAuthLoaded = authState.isLoaded
@@ -70,9 +71,11 @@ export default function SignInPage() {
   const [email, setEmail] = useState("")
   const [isGoogleRedirecting, setIsGoogleRedirecting] = useState(false)
   const [isMagicLinkSending, setIsMagicLinkSending] = useState(false)
+  const [isResettingSession, setIsResettingSession] = useState(false)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const magicLinkAttemptRef = useRef(0)
+  const didResetSessionRef = useRef(false)
 
   const next = searchParams.get("next")
   const plan = searchParams.get("plan")
@@ -96,10 +99,24 @@ export default function SignInPage() {
       return
     }
 
-    if (isSignedIn) {
-      router.replace(redirectAfterAuth)
+    if (!isSignedIn) {
+      setIsResettingSession(false)
+      return
     }
-  }, [isAuthLoaded, isSignedIn, redirectAfterAuth, router])
+
+    if (didResetSessionRef.current) {
+      return
+    }
+
+    didResetSessionRef.current = true
+    setIsResettingSession(true)
+    void clerk
+      .signOut()
+      .catch(() => undefined)
+      .finally(() => {
+        setIsResettingSession(false)
+      })
+  }, [clerk, isAuthLoaded, isSignedIn])
 
   async function postPreflight<T>(url: string, body: Record<string, unknown>): Promise<T> {
     const response = await fetch(url, {
@@ -126,7 +143,13 @@ export default function SignInPage() {
     }
 
     if (isSignedIn) {
-      router.replace(redirectAfterAuth)
+      setIsResettingSession(true)
+      await clerk
+        .signOut()
+        .catch(() => undefined)
+        .finally(() => {
+          setIsResettingSession(false)
+        })
       return
     }
 
@@ -336,7 +359,7 @@ export default function SignInPage() {
             <button
               type="button"
               onClick={() => void handleGoogleSignIn()}
-              disabled={!isLoaded || isGoogleRedirecting || isMagicLinkSending}
+              disabled={!isLoaded || isGoogleRedirecting || isMagicLinkSending || isResettingSession}
               className="mt-6 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-input bg-card px-4 text-sm font-semibold text-foreground transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-70"
             >
               <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
@@ -362,7 +385,7 @@ export default function SignInPage() {
                   required
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
-                  disabled={!isLoaded || isGoogleRedirecting || isMagicLinkSending}
+                  disabled={!isLoaded || isGoogleRedirecting || isMagicLinkSending || isResettingSession}
                   className="h-11 w-full rounded-xl border border-input bg-background px-4 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-accent/40"
                   placeholder="you@company.com"
                 />
@@ -375,10 +398,10 @@ export default function SignInPage() {
 
               <button
                 type="submit"
-                disabled={!isLoaded || isGoogleRedirecting || isMagicLinkSending}
+                disabled={!isLoaded || isGoogleRedirecting || isMagicLinkSending || isResettingSession}
                 className="mt-1 inline-flex h-11 w-full items-center justify-center rounded-full bg-accent px-6 text-sm font-semibold text-accent-foreground transition-all hover:brightness-95 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
               >
-                {isMagicLinkSending ? "Sending magic link..." : "Send magic link"}
+                {isResettingSession ? "Preparing sign-in..." : isMagicLinkSending ? "Sending magic link..." : "Send magic link"}
               </button>
 
             </form>
