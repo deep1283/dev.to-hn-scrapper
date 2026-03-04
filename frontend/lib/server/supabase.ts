@@ -241,6 +241,14 @@ async function getProfileByClerkUserId(accessToken: string, clerkUserId: string)
     return rows[0] ?? null
   } catch (error) {
     const details = error instanceof Error ? error.message.toLowerCase() : ""
+    if (details.includes("invalid input syntax for type uuid")) {
+      throw new AppError(
+        500,
+        "Authentication setup is incomplete. Please contact support.",
+        "profiles.clerk_user_id must be text. Run migration 20260304_profiles_clerk_user_id_text.sql.",
+      )
+    }
+
     if (details.includes("clerk_user_id")) {
       throw new AppError(
         500,
