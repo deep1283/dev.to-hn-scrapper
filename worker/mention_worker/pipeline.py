@@ -9,7 +9,7 @@ import httpx
 
 from mention_worker.config import Settings
 from mention_worker.db import Database
-from mention_worker.models import QueryCacheEntry
+from mention_worker.models import MentionRecord, QueryCacheEntry
 from mention_worker.slack import send_slack_alert
 from mention_worker.sources.registry import SOURCE_DEFINITIONS
 
@@ -155,6 +155,7 @@ class Worker:
             group_since = min(since for _, since in task_group)
             cache_entry = query_cache.get((source, normalized_query))
             cache_fresh = self._is_query_cache_fresh(source, cache_entry.last_fetched_at if cache_entry else None)
+            fetched_mentions_by_id: dict[int, MentionRecord] = {}
 
             try:
                 if not cache_fresh:
@@ -205,7 +206,14 @@ class Worker:
                         stats["source_mentions_fetched"] += len(mentions)
 
                         for mention in mentions:
-                            self.db.upsert_mention(conn, mention)
+                            mention_id = self.db.upsert_mention(conn, mention)
+                            mention_published_at = mention.published_at
+                            if mention_published_at.tzinfo is None:
+                                mention_published_at = mention_published_at.replace(tzinfo=timezone.utc)
+                            fetched_mentions_by_id[mention_id] = MentionRecord(
+                                mention_id=mention_id,
+                                published_at=mention_published_at,
+                            )
                             stats["mentions_upserted"] += 1
                         fetched_at = datetime.now(tz=timezone.utc)
                         self.db.upsert_query_cache_entry(
@@ -236,6 +244,14 @@ class Worker:
                     limit=self.settings.per_source_limit * 10,
                 )
                 stats["cached_mentions_scanned"] += len(recent_mentions)
+                if fetched_mentions_by_id:
+                    merged_mentions: dict[int, MentionRecord] = {
+                        mention.mention_id: mention for mention in recent_mentions
+                    }
+                    for mention_id, mention_record in fetched_mentions_by_id.items():
+                        if mention_id not in merged_mentions:
+                            merged_mentions[mention_id] = mention_record
+                    recent_mentions = list(merged_mentions.values())
 
                 checked_at = datetime.now(tz=timezone.utc)
                 for task, task_since in task_group:

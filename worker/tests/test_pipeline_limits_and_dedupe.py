@@ -82,6 +82,8 @@ def _make_settings(**overrides) -> Settings:
         "reddit_client_secret": None,
         "reddit_user_agent": "mention-worker/1.0",
         "devto_top_days": 7,
+        "devto_page_size": 50,
+        "devto_max_pages": 2,
         "google_api_key": None,
         "google_cse_id": None,
         "brave_api_key": None,
@@ -248,6 +250,48 @@ class _QueryLockContentionDB:
         self.error_calls += 1
 
 
+class _FreshFetchOnlyDB:
+    def __init__(self, tasks: list[SourceTask], mention_id: int) -> None:
+        self._tasks = tasks
+        self._mention_id = mention_id
+        self.match_calls = 0
+        self.success_calls = 0
+
+    def fetch_due_source_tasks(self, *_args, **_kwargs):
+        return self._tasks
+
+    def fetch_query_cache_entries(self, *_args, **_kwargs):
+        return {}
+
+    def try_query_advisory_lock(self, *_args, **_kwargs):
+        return True
+
+    def release_query_advisory_lock(self, *_args, **_kwargs):
+        return None
+
+    def upsert_mention(self, *_args, **_kwargs):
+        return self._mention_id
+
+    def upsert_query_cache_entry(self, *_args, **_kwargs):
+        return None
+
+    def fetch_recent_mentions_for_query(self, *_args, **_kwargs):
+        return []
+
+    def insert_mention_match(self, *_args, **_kwargs):
+        self.match_calls += 1
+        return True
+
+    def enqueue_alert(self, *_args, **_kwargs):
+        return False
+
+    def mark_source_task_success(self, *_args, **_kwargs):
+        self.success_calls += 1
+
+    def mark_source_task_error(self, *_args, **_kwargs):
+        raise AssertionError("mark_source_task_error should not be called for success path")
+
+
 class WorkerPipelineTests(unittest.TestCase):
     def test_daily_budget_reached_defers_task_until_utc_rollover(self) -> None:
         base_settings = _make_settings()
@@ -405,6 +449,51 @@ class WorkerPipelineTests(unittest.TestCase):
         self.assertEqual(stats["tasks_deferred_query_lock"], 1)
         self.assertEqual(stats.get("source_mentions_fetched", 0), 0)
         self.assertEqual(fake_db.error_calls, 1)
+
+    def test_fresh_fetch_matches_are_linked_even_when_cache_query_returns_empty(self) -> None:
+        settings = _make_settings()
+        worker = Worker(settings)
+
+        task = SourceTask(
+            keyword_id=uuid4(),
+            user_id=uuid4(),
+            plan_tier="starter_9",
+            query="signalze",
+            source="devto",
+            last_checked_at=None,
+        )
+        mention = MentionCandidate(
+            platform="devto",
+            external_id="devto-1",
+            url="https://dev.to/example/post",
+            title="Generic title",
+            body_excerpt="",
+            author="author",
+            community="dev.to",
+            published_at=datetime.now(tz=timezone.utc),
+            raw_payload={"tag_list": ["signalze"]},
+        )
+
+        fake_db = _FreshFetchOnlyDB([task], mention_id=77)
+        worker.db = fake_db  # type: ignore[assignment]
+
+        stats: dict[str, int] = defaultdict(int)
+        source_requests_run: dict[str, int] = defaultdict(int)
+        source_requests_today: dict[str, int] = defaultdict(int)
+
+        worker._process_source_tasks(
+            conn=object(),
+            sources={"devto": _FixedSource([mention])},
+            stats=stats,
+            source_requests_run=source_requests_run,
+            source_requests_today=source_requests_today,
+        )
+
+        self.assertEqual(stats["tasks_polled"], 1)
+        self.assertEqual(stats["source_mentions_fetched"], 1)
+        self.assertEqual(stats["matches_created"], 1)
+        self.assertEqual(fake_db.match_calls, 1)
+        self.assertEqual(fake_db.success_calls, 1)
 
 
 if __name__ == "__main__":

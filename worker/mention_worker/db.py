@@ -285,11 +285,22 @@ class Database:
                     or lower(coalesce(body_excerpt, '')) like %s escape '\\'
                     or lower(coalesce(author, '')) like %s escape '\\'
                     or lower(coalesce(community, '')) like %s escape '\\'
+                    or (%s = 'devto' and lower(coalesce(raw_payload::text, '')) like %s escape '\\')
                   )
                 order by published_at desc
                 limit %s
                 """,
-                (source, since, like_pattern, like_pattern, like_pattern, like_pattern, limit),
+                (
+                    source,
+                    since,
+                    like_pattern,
+                    like_pattern,
+                    like_pattern,
+                    like_pattern,
+                    source,
+                    like_pattern,
+                    limit,
+                ),
             )
             rows = cur.fetchall() or []
 

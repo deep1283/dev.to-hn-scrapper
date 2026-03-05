@@ -28,7 +28,15 @@ def _build_hackernews(client: httpx.Client, _settings: Any) -> tuple[object | No
 
 
 def _build_devto(client: httpx.Client, settings: Any) -> tuple[object | None, str | None]:
-    return DevToSource(client, top_days=settings.devto_top_days), None
+    return (
+        DevToSource(
+            client,
+            top_days=getattr(settings, "devto_top_days", 7),
+            page_size=getattr(settings, "devto_page_size", 50),
+            max_pages=getattr(settings, "devto_max_pages", 2),
+        ),
+        None,
+    )
 
 
 def _build_github_discussions(client: httpx.Client, settings: Any) -> tuple[object | None, str | None]:
