@@ -175,7 +175,7 @@ function getEventType(payload: DodoEvent): string {
 }
 
 function isSuccessfulEvent(type: string): boolean {
-  return type.includes("success") || type.includes("completed") || type.includes("active")
+  return type.includes("success") || type.includes("succeeded") || type.includes("completed") || type.includes("active")
 }
 
 function getMetadata(payload: DodoEvent): Metadata {
