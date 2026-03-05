@@ -32,6 +32,7 @@ class Settings:
     request_timeout_seconds: float
     source_keys: tuple[str, ...]
     source_enabled: dict[str, bool]
+    plan_poll_interval_minutes: dict[str, int]
     source_poll_interval_minutes: dict[str, int]
     source_query_cache_ttl_minutes: dict[str, int]
     source_incremental_lookback_hours: dict[str, int]
@@ -44,6 +45,14 @@ class Settings:
 
     def poll_interval_for_source(self, source: str) -> int:
         return int(self.source_poll_interval_minutes.get(source, self.poll_interval_minutes))
+
+    def poll_interval_for_plan(self, plan_tier: str, *, fallback_source: str | None = None) -> int:
+        plan_interval = self.plan_poll_interval_minutes.get(plan_tier)
+        if plan_interval is not None:
+            return int(plan_interval)
+        if fallback_source is not None:
+            return int(self.source_poll_interval_minutes.get(fallback_source, self.poll_interval_minutes))
+        return int(self.poll_interval_minutes)
 
     def daily_request_limit_for_source(self, source: str) -> int | None:
         return self.source_daily_request_limit.get(source)
@@ -90,6 +99,10 @@ def load_settings() -> Settings:
     poll_interval_minutes = int(os.getenv("POLL_INTERVAL_MINUTES", "15"))
 
     source_enabled: dict[str, bool] = {}
+    plan_poll_interval_minutes = {
+        "starter_9": max(int(os.getenv("PLAN_STARTER_9_POLL_INTERVAL_MINUTES", "300")), 1),
+        "growth_15": max(int(os.getenv("PLAN_GROWTH_15_POLL_INTERVAL_MINUTES", "180")), 1),
+    }
     source_poll_interval_minutes: dict[str, int] = {}
     source_query_cache_ttl_minutes: dict[str, int] = {}
     source_incremental_lookback_hours: dict[str, int] = {}
@@ -153,6 +166,7 @@ def load_settings() -> Settings:
         request_timeout_seconds=float(os.getenv("REQUEST_TIMEOUT_SECONDS", "20")),
         source_keys=tuple(source.key for source in SOURCE_DEFINITIONS),
         source_enabled=source_enabled,
+        plan_poll_interval_minutes=plan_poll_interval_minutes,
         source_poll_interval_minutes=source_poll_interval_minutes,
         source_query_cache_ttl_minutes=source_query_cache_ttl_minutes,
         source_incremental_lookback_hours=source_incremental_lookback_hours,

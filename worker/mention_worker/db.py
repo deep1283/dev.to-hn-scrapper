@@ -172,6 +172,7 @@ class Database:
                 select
                   ks.keyword_id,
                   k.user_id,
+                  p.plan_tier::text as plan_tier,
                   k.query,
                   ks.source::text as source,
                   st.last_checked_at
@@ -199,6 +200,7 @@ class Database:
                 SourceTask(
                     keyword_id=row["keyword_id"],
                     user_id=row["user_id"],
+                    plan_tier=row["plan_tier"],
                     query=row["query"],
                     source=row["source"],
                     last_checked_at=row["last_checked_at"],

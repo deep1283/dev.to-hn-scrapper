@@ -13,7 +13,8 @@ type BootstrapMentionsResult = {
 type BootstrapParams = {
   accessToken: string
   userId: string
-  termCount: number
+  termCount?: number
+  reason: "onboarding_completed" | "keyword_activated"
 }
 
 function resolveWebhookTimeoutMs(): number {
@@ -36,7 +37,7 @@ async function seedMatchesFromRecentMentions(accessToken: string, userId: string
 
   const inserted = Number(payload.inserted_matches ?? 0)
   const nudged = Number(payload.nudged_sources ?? 0)
-  console.info("[mentions-bootstrap] Seeded onboarding mentions from cache.", {
+  console.info("[mentions-bootstrap] Seeded mentions from cache.", {
     userId,
     insertedMatches: inserted,
     nudgedSources: nudged,
@@ -64,9 +65,9 @@ async function triggerRunNowWebhook(params: BootstrapParams): Promise<void> {
         ...(webhookToken ? { Authorization: `Bearer ${webhookToken}` } : {}),
       },
       body: JSON.stringify({
-        reason: "onboarding_completed",
+        reason: params.reason,
         userId: params.userId,
-        terms: params.termCount,
+        terms: params.termCount ?? null,
         requestedAt: new Date().toISOString(),
       }),
     })
@@ -76,8 +77,9 @@ async function triggerRunNowWebhook(params: BootstrapParams): Promise<void> {
       throw new Error(`Webhook returned ${response.status}${details ? `: ${details.slice(0, 240)}` : ""}`)
     }
 
-    console.info("[mentions-bootstrap] Triggered run-now webhook after onboarding completion.", {
+    console.info("[mentions-bootstrap] Triggered run-now webhook.", {
       userId: params.userId,
+      reason: params.reason,
       status: response.status,
     })
   } finally {
@@ -85,12 +87,13 @@ async function triggerRunNowWebhook(params: BootstrapParams): Promise<void> {
   }
 }
 
-export async function bootstrapMentionsAfterOnboarding(params: BootstrapParams): Promise<void> {
+async function bootstrapMentions(params: BootstrapParams): Promise<void> {
   try {
     await seedMatchesFromRecentMentions(params.accessToken, params.userId)
   } catch (error) {
-    console.warn("[mentions-bootstrap] Cache bootstrap failed; continuing without blocking onboarding.", {
+    console.warn("[mentions-bootstrap] Cache bootstrap failed; continuing without blocking request.", {
       userId: params.userId,
+      reason: params.reason,
       error: error instanceof Error ? error.message : String(error),
     })
   }
@@ -100,7 +103,22 @@ export async function bootstrapMentionsAfterOnboarding(params: BootstrapParams):
   } catch (error) {
     console.warn("[mentions-bootstrap] Run-now webhook failed; worker cron will still pick up due tasks.", {
       userId: params.userId,
+      reason: params.reason,
       error: error instanceof Error ? error.message : String(error),
     })
   }
+}
+
+export async function bootstrapMentionsAfterOnboarding(params: Omit<BootstrapParams, "reason">): Promise<void> {
+  await bootstrapMentions({
+    ...params,
+    reason: "onboarding_completed",
+  })
+}
+
+export async function bootstrapMentionsAfterKeywordActivation(params: Omit<BootstrapParams, "reason" | "termCount">): Promise<void> {
+  await bootstrapMentions({
+    ...params,
+    reason: "keyword_activated",
+  })
 }

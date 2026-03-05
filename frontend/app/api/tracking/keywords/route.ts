@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { PLAN_CONFIG } from "@/lib/plans"
 import { requireEntitledAuth } from "@/lib/server/authz"
 import { badRequest, toErrorResponse, tooManyRequests } from "@/lib/server/errors"
+import { bootstrapMentionsAfterKeywordActivation } from "@/lib/server/mentions-bootstrap"
 import { getRequestIp, parseJsonBody } from "@/lib/server/request"
 import { takeRateLimit } from "@/lib/server/rate-limit"
 import { insertKeyword, listKeywords, updateKeyword } from "@/lib/server/supabase"
@@ -59,9 +60,17 @@ export async function POST(request: NextRequest) {
       throw badRequest(`Your ${plan.name} plan supports up to ${plan.maxKeywords} keywords.`)
     }
 
+    const wasReactivated = Boolean(existing && !existing.is_active)
     const keyword = existing
       ? await updateKeyword(auth.accessToken, auth.userId, existing.id, { is_active: true, query })
       : await insertKeyword(auth.accessToken, auth.userId, query)
+
+    if (wasReactivated) {
+      await bootstrapMentionsAfterKeywordActivation({
+        accessToken: auth.accessToken,
+        userId: auth.userId,
+      })
+    }
 
     const response = NextResponse.json({ keyword })
     return withSessionCookie(response, auth.sessionResult)
@@ -99,6 +108,8 @@ export async function PATCH(request: NextRequest) {
       throw badRequest("No valid keyword changes provided.")
     }
 
+    let wasReactivated = false
+
     if (patch.is_active) {
       const existingKeywords = await listKeywords(auth.accessToken, auth.userId, true)
       const activeCount = existingKeywords.filter((keyword) => keyword.is_active && keyword.id !== body.id).length
@@ -106,9 +117,19 @@ export async function PATCH(request: NextRequest) {
       if (activeCount >= plan.maxKeywords) {
         throw badRequest(`Your ${plan.name} plan supports up to ${plan.maxKeywords} keywords.`)
       }
+      const current = existingKeywords.find((keyword) => keyword.id === body.id)
+      wasReactivated = Boolean(current && !current.is_active)
     }
 
     const keyword = await updateKeyword(auth.accessToken, auth.userId, body.id, patch)
+
+    if (wasReactivated) {
+      await bootstrapMentionsAfterKeywordActivation({
+        accessToken: auth.accessToken,
+        userId: auth.userId,
+      })
+    }
+
     const response = NextResponse.json({ keyword })
     return withSessionCookie(response, auth.sessionResult)
   } catch (error) {

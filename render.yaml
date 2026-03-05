@@ -1,0 +1,37 @@
+services:
+  - type: cron
+    name: signalze-mentions-worker
+    runtime: python
+    plan: starter
+    region: oregon
+    rootDir: worker
+    schedule: "*/15 * * * *"
+    buildCommand: pip install -r requirements.txt
+    startCommand: python main.py
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: FREE_TIER_MODE
+        value: "true"
+      - key: POLL_INTERVAL_MINUTES
+        value: "15"
+      - key: PLAN_STARTER_9_POLL_INTERVAL_MINUTES
+        value: "300"
+      - key: PLAN_GROWTH_15_POLL_INTERVAL_MINUTES
+        value: "180"
+      - key: SOURCE_HN_ENABLED
+        value: "true"
+      - key: SOURCE_DEVTO_ENABLED
+        value: "true"
+      - key: SOURCE_GITHUB_DISCUSSIONS_ENABLED
+        value: "true"
+      - key: SOURCE_REDDIT_ENABLED
+        value: "false"
+      - key: SOURCE_GOOGLE_ENABLED
+        value: "false"
+      - key: SOURCE_BRAVE_ENABLED
+        value: "false"
+      - key: SOURCE_PRODUCTHUNT_ENABLED
+        value: "false"

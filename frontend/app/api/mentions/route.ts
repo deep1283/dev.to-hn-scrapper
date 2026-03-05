@@ -35,6 +35,7 @@ type MentionBody = {
 
 type MentionMatchRow = {
   matched_query: string
+  matched_at: string | null
   mentions: {
     platform: ActivePlatform
     external_id: string
@@ -161,7 +162,7 @@ export async function POST(request: NextRequest) {
     const rows = await restRequest<MentionMatchRow[]>(
       `/mention_matches?user_id=eq.${encodeURIComponent(
         auth.userId,
-      )}&select=matched_query,mentions!inner(platform,external_id,url,title,body_excerpt,author,community,published_at)${platformFilter}${timeFilter}&order=matched_at.desc&limit=${Math.min(
+      )}&select=matched_query,matched_at,mentions!inner(platform,external_id,url,title,body_excerpt,author,community,published_at)${platformFilter}${timeFilter}&order=matched_at.desc&limit=${Math.min(
         rowLimit,
         3600,
       )}`,
@@ -201,9 +202,12 @@ export async function POST(request: NextRequest) {
     const mentions = Array.from(merged.values())
       .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
     const independentMentions = limitMentionsPerPlatform(mentions, platforms, perPlatformLimit)
+    const latestMatchedAtRaw = rows.find((row) => typeof row.matched_at === "string" && row.matched_at.trim())?.matched_at ?? null
+    const latestMatchedAt = latestMatchedAtRaw ? toIso(latestMatchedAtRaw) : null
 
     const response = NextResponse.json({
       fetchedAt: new Date().toISOString(),
+      latestMatchedAt,
       sourceErrors: [],
       mentions: independentMentions,
     })

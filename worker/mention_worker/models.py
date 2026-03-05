@@ -10,6 +10,7 @@ from uuid import UUID
 class SourceTask:
     keyword_id: UUID
     user_id: UUID
+    plan_tier: str
     query: str
     source: str
     last_checked_at: datetime | None

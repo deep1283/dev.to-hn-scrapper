@@ -22,6 +22,23 @@ Python is a good fit for this workload because polling, normalization, retries, 
 - Deploy this folder as a Railway service.
 - Run it as a **Cron job every 10-15 minutes**.
 - Command: `python main.py`
+- Effective polling cadence is plan-based by default:
+  - `starter_9` ($5): every 5 hours
+  - `growth_15` ($9): every 3 hours
+  via `PLAN_STARTER_9_POLL_INTERVAL_MINUTES` and `PLAN_GROWTH_15_POLL_INTERVAL_MINUTES`.
+
+## Render setup (ready in repo)
+- This repo includes [`/Users/deepmishra/vscode/signalze/render.yaml`](/Users/deepmishra/vscode/signalze/render.yaml) with a `starter` cron service:
+  - schedule: every 15 minutes (`*/15 * * * *`)
+  - root dir: `worker`
+  - command: `python main.py`
+- In Render:
+  1. New -> Blueprint -> select this repo.
+  2. Review the cron service `signalze-mentions-worker`.
+  3. Set secrets:
+     - `DATABASE_URL`
+     - `GITHUB_TOKEN`
+  4. Deploy.
 
 ## Free-tier-safe mode (recommended for MVP)
 Keep request volume conservative until you have paid customers.
@@ -40,7 +57,7 @@ Suggested env values:
 - `SOURCE_HN_INCREMENTAL_LOOKBACK_HOURS=24`
 - `SOURCE_DEVTO_INCREMENTAL_LOOKBACK_HOURS=24`
 - `SOURCE_GITHUB_DISCUSSIONS_INCREMENTAL_LOOKBACK_HOURS=24`
-- `POLL_INTERVAL_MINUTES=15` (worker can still run often; source intervals gate calls)
+- `POLL_INTERVAL_MINUTES=15` (worker execution cadence; plan intervals control per-keyword scheduling)
 - `MENTION_RETENTION_DAYS=7`
 - `INITIAL_BACKFILL_DAYS=7`
 - `SOURCE_REDDIT_ENABLED=false`

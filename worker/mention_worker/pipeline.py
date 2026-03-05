@@ -274,7 +274,7 @@ class Worker:
                         keyword_id=task.keyword_id,
                         source=task.source,
                         checked_at=checked_at,
-                        poll_interval_minutes=self._poll_interval_for_source(task.source),
+                        poll_interval_minutes=self._poll_interval_for_task(task.source, task.plan_tier),
                     )
                     stats["tasks_succeeded"] += 1
             except Exception as exc:  # noqa: BLE001
@@ -285,7 +285,7 @@ class Worker:
                         keyword_id=task.keyword_id,
                         source=task.source,
                         error=str(exc),
-                        backoff_minutes=self._poll_interval_for_source(task.source),
+                        backoff_minutes=self._poll_interval_for_task(task.source, task.plan_tier),
                     )
                 stats["task_errors"] += len(task_group)
 
@@ -334,8 +334,8 @@ class Worker:
         delay = self.settings.retry_base_seconds * (2**exponent)
         return min(delay, self.settings.retry_max_seconds)
 
-    def _poll_interval_for_source(self, source: str) -> int:
-        return self.settings.poll_interval_for_source(source)
+    def _poll_interval_for_task(self, source: str, plan_tier: str) -> int:
+        return self.settings.poll_interval_for_plan(plan_tier, fallback_source=source)
 
     def _source_daily_limit_reached(self, source: str, source_requests_today: dict[str, int]) -> bool:
         limit = self.settings.daily_request_limit_for_source(source)

@@ -203,7 +203,7 @@ function PricingContent() {
                   ) : (
                     <>
                       <PricingFeature>Slack updates</PricingFeature>
-                      <PricingFeature>Faster refresh</PricingFeature>
+                      <PricingFeature>Faster fetching</PricingFeature>
                       <PricingFeature>X monitoring (coming soon)</PricingFeature>
                     </>
                   )}

@@ -2,7 +2,7 @@
 
 import Image from "next/image"
 import Link from "next/link"
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
 import { isTrialExpired } from "@/lib/client/billing"
 import {
@@ -35,10 +35,17 @@ type Mention = {
 
 type MentionsApiResponse = {
   fetchedAt: string
+  latestMatchedAt: string | null
   mentions: Mention[]
 }
 
+type MentionStatusResponse = {
+  hasNew: boolean
+  latestMatchedAt: string | null
+}
+
 const HISTORY_DAYS = 7
+const STATUS_CHECK_INTERVAL_MS = 5 * 60_000
 
 function formatTime(isoTime: string): string {
   const date = new Date(isoTime)
@@ -80,7 +87,64 @@ export default function DashboardPage() {
 
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshingMentions, setIsRefreshingMentions] = useState(false)
+  const [hasNewMentions, setHasNewMentions] = useState(false)
+  const [lastSeenMatchedAt, setLastSeenMatchedAt] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const statusCheckIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const fetchMentions = useCallback(async () => {
+    setError(null)
+    setIsRefreshingMentions(true)
+
+    try {
+      const response = await fetch("/api/mentions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          platforms: ACTIVE_PLATFORMS,
+          limit: 150,
+        }),
+      })
+
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as { error?: string } | null
+        throw new Error(payload?.error ?? "Failed to fetch mentions")
+      }
+
+      const payload = (await response.json()) as MentionsApiResponse
+      setMentions(payload.mentions)
+      setLastSeenMatchedAt(payload.latestMatchedAt ?? null)
+      setHasNewMentions(false)
+    } catch (fetchError) {
+      setError(fetchError instanceof Error ? fetchError.message : "Failed to fetch mentions")
+    } finally {
+      setIsRefreshingMentions(false)
+    }
+  }, [])
+
+  const checkForNewMentions = useCallback(async (since: string | null) => {
+    try {
+      const searchParams = new URLSearchParams()
+      if (since) {
+        searchParams.set("since", since)
+      }
+      const response = await fetch(`/api/mentions/status?${searchParams.toString()}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+      if (!response.ok) {
+        return
+      }
+      const payload = (await response.json()) as MentionStatusResponse
+      setHasNewMentions(Boolean(payload.hasNew))
+    } catch {
+      // Ignore transient status polling errors on dashboard.
+    }
+  }, [])
 
   useEffect(() => {
     async function bootstrap() {
@@ -128,6 +192,7 @@ export default function DashboardPage() {
 
         const keywords = await listKeywords(validSession)
         setKeywordRows(keywords)
+        await fetchMentions()
       } catch (bootstrapError) {
         const message = bootstrapError instanceof Error ? bootstrapError.message : "Failed to load dashboard"
         if (message.toLowerCase().includes("trial has ended")) {
@@ -141,7 +206,34 @@ export default function DashboardPage() {
     }
 
     void bootstrap()
-  }, [])
+  }, [fetchMentions])
+
+  useEffect(() => {
+    if (isLoading || isRefreshingMentions) {
+      return
+    }
+    void checkForNewMentions(lastSeenMatchedAt)
+  }, [checkForNewMentions, isLoading, isRefreshingMentions, lastSeenMatchedAt])
+
+  useEffect(() => {
+    if (isLoading) {
+      return
+    }
+
+    if (statusCheckIntervalRef.current) {
+      clearInterval(statusCheckIntervalRef.current)
+    }
+
+    statusCheckIntervalRef.current = setInterval(() => {
+      void checkForNewMentions(lastSeenMatchedAt)
+    }, STATUS_CHECK_INTERVAL_MS)
+
+    return () => {
+      if (statusCheckIntervalRef.current) {
+        clearInterval(statusCheckIntervalRef.current)
+      }
+    }
+  }, [checkForNewMentions, isLoading, lastSeenMatchedAt])
 
   const filteredMentions = useMemo(() => {
     if (activePlatform === "all") {
@@ -216,36 +308,6 @@ export default function DashboardPage() {
       hasAny: today.length > 0 || previousDays.some((item) => item.mentions.length > 0),
     }
   }, [filteredMentions])
-
-  async function fetchMentions() {
-    setError(null)
-    setIsRefreshingMentions(true)
-
-    try {
-      const response = await fetch("/api/mentions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          platforms: ACTIVE_PLATFORMS,
-          limit: 150,
-        }),
-      })
-
-      if (!response.ok) {
-        const payload = (await response.json().catch(() => null)) as { error?: string } | null
-        throw new Error(payload?.error ?? "Failed to fetch mentions")
-      }
-
-      const payload = (await response.json()) as MentionsApiResponse
-      setMentions(payload.mentions)
-    } catch (fetchError) {
-      setError(fetchError instanceof Error ? fetchError.message : "Failed to fetch mentions")
-    } finally {
-      setIsRefreshingMentions(false)
-    }
-  }
 
   async function handleLogout() {
     const clerk = (window as { Clerk?: { signOut?: (options?: { redirectUrl?: string }) => Promise<void> } }).Clerk
@@ -325,13 +387,21 @@ export default function DashboardPage() {
         <section className="p-2 sm:p-3">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="font-handwriting text-3xl text-card-foreground">Mentions</h2>
-            <button
-              onClick={() => void fetchMentions()}
-              disabled={isRefreshingMentions}
-              className="inline-flex h-10 items-center justify-center rounded-full border border-border/40 px-6 text-sm font-semibold text-foreground transition-all hover:opacity-80 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
-            >
-              {isRefreshingMentions ? "Refreshing..." : "Refresh feed"}
-            </button>
+            <div className="flex flex-col items-start gap-1 sm:items-end">
+              {hasNewMentions ? (
+                <button
+                  onClick={() => void fetchMentions()}
+                  disabled={isRefreshingMentions}
+                  className="inline-flex h-10 items-center justify-center rounded-full border border-border/40 px-6 text-sm font-semibold text-foreground transition-all hover:opacity-80 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {isRefreshingMentions ? "Refreshing..." : "Refresh feed"}
+                </button>
+              ) : (
+                <span className="inline-flex h-10 items-center justify-center rounded-full border border-border/30 px-6 text-sm text-muted-foreground">
+                  Refreshed
+                </span>
+              )}
+            </div>
           </div>
 
           {error ? (
@@ -393,7 +463,7 @@ export default function DashboardPage() {
 
           {!mentionTimeline.hasAny ? (
             <p className="mt-5 rounded-xl border border-dashed border-border/40 p-8 text-center text-sm text-muted-foreground">
-              No mentions yet. Hit &quot;Refresh feed&quot; to pull latest mentions.
+              No mentions yet. New mentions appear after the worker refresh cycle.
             </p>
           ) : null}
         </section>

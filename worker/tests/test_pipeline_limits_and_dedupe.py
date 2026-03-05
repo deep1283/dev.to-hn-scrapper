@@ -89,6 +89,10 @@ def _make_settings(**overrides) -> Settings:
         "request_timeout_seconds": 20.0,
         "source_keys": source_keys,
         "source_enabled": source_enabled,
+        "plan_poll_interval_minutes": {
+            "starter_9": 300,
+            "growth_15": 180,
+        },
         "source_poll_interval_minutes": source_poll_interval_minutes,
         "source_query_cache_ttl_minutes": {key: 15 for key in source_keys},
         "source_incremental_lookback_hours": {key: 24 for key in source_keys},
@@ -258,6 +262,7 @@ class WorkerPipelineTests(unittest.TestCase):
         task = SourceTask(
             keyword_id=uuid4(),
             user_id=uuid4(),
+            plan_tier="starter_9",
             query="signalze",
             source="github_discussions",
             last_checked_at=None,
@@ -292,6 +297,7 @@ class WorkerPipelineTests(unittest.TestCase):
         task = SourceTask(
             keyword_id=uuid4(),
             user_id=uuid4(),
+            plan_tier="starter_9",
             query="signalze",
             source="hackernews",
             last_checked_at=None,
@@ -338,6 +344,7 @@ class WorkerPipelineTests(unittest.TestCase):
         task = SourceTask(
             keyword_id=uuid4(),
             user_id=uuid4(),
+            plan_tier="starter_9",
             query="signalze",
             source="github_discussions",
             last_checked_at=None,
@@ -372,6 +379,7 @@ class WorkerPipelineTests(unittest.TestCase):
         task = SourceTask(
             keyword_id=uuid4(),
             user_id=uuid4(),
+            plan_tier="starter_9",
             query="signalze",
             source="devto",
             last_checked_at=None,
