@@ -465,6 +465,19 @@ export default function SettingsPage() {
 
               {canUseSlack ? (
                 <>
+                  {slackConnected ? (
+                    <div className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3">
+                      <p className="text-sm font-medium text-emerald-700">Slack is connected</p>
+                      <p className="mt-1 text-xs text-emerald-700/90">
+                        Mention alerts are active for your workspace.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="mt-4 rounded-xl border border-border/40 px-4 py-3">
+                      <p className="text-sm text-muted-foreground">Slack is not connected yet.</p>
+                    </div>
+                  )}
+
                   <p className="mt-1 text-sm text-muted-foreground">
                     Connect your Slack incoming webhook to get mention updates faster.
                   </p>
