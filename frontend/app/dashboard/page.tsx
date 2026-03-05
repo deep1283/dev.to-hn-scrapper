@@ -46,6 +46,7 @@ type MentionStatusResponse = {
 
 const HISTORY_DAYS = 7
 const STATUS_CHECK_INTERVAL_MS = 5 * 60_000
+const BOOTSTRAP_STATUS_CHECK_INTERVAL_MS = 15_000
 
 function formatTime(isoTime: string): string {
   const date = new Date(isoTime)
@@ -89,8 +90,22 @@ export default function DashboardPage() {
   const [isRefreshingMentions, setIsRefreshingMentions] = useState(false)
   const [hasNewMentions, setHasNewMentions] = useState(false)
   const [lastSeenMatchedAt, setLastSeenMatchedAt] = useState<string | null>(null)
+  const [isBootstrappingMentions, setIsBootstrappingMentions] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const statusCheckIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const clearBootstrappingQueryParam = useCallback(() => {
+    if (typeof window === "undefined") {
+      return
+    }
+    const url = new URL(window.location.href)
+    if (!url.searchParams.has("bootstrapping")) {
+      return
+    }
+    url.searchParams.delete("bootstrapping")
+    const next = `${url.pathname}${url.searchParams.toString() ? `?${url.searchParams.toString()}` : ""}${url.hash}`
+    window.history.replaceState({}, "", next)
+  }, [])
 
   const fetchMentions = useCallback(async () => {
     setError(null)
@@ -117,14 +132,18 @@ export default function DashboardPage() {
       setMentions(payload.mentions)
       setLastSeenMatchedAt(payload.latestMatchedAt ?? null)
       setHasNewMentions(false)
+      if (payload.mentions.length > 0) {
+        setIsBootstrappingMentions(false)
+        clearBootstrappingQueryParam()
+      }
     } catch (fetchError) {
       setError(fetchError instanceof Error ? fetchError.message : "Failed to fetch mentions")
     } finally {
       setIsRefreshingMentions(false)
     }
-  }, [])
+  }, [clearBootstrappingQueryParam])
 
-  const checkForNewMentions = useCallback(async (since: string | null) => {
+  const checkForNewMentions = useCallback(async (since: string | null, options?: { autoFetch?: boolean }) => {
     try {
       const searchParams = new URLSearchParams()
       if (since) {
@@ -140,11 +159,26 @@ export default function DashboardPage() {
         return
       }
       const payload = (await response.json()) as MentionStatusResponse
-      setHasNewMentions(Boolean(payload.hasNew))
+      const hasNew = Boolean(payload.hasNew)
+      setHasNewMentions(hasNew)
+      if (hasNew && options?.autoFetch && !isRefreshingMentions) {
+        await fetchMentions()
+      }
     } catch {
       // Ignore transient status polling errors on dashboard.
     }
-  }, [])
+  }, [fetchMentions, isRefreshingMentions])
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return
+    }
+    const fromOnboarding = new URLSearchParams(window.location.search).get("bootstrapping") === "1"
+    setIsBootstrappingMentions(fromOnboarding)
+    if (!fromOnboarding) {
+      clearBootstrappingQueryParam()
+    }
+  }, [clearBootstrappingQueryParam])
 
   useEffect(() => {
     async function bootstrap() {
@@ -214,6 +248,32 @@ export default function DashboardPage() {
     }
     void checkForNewMentions(lastSeenMatchedAt)
   }, [checkForNewMentions, isLoading, isRefreshingMentions, lastSeenMatchedAt])
+
+  useEffect(() => {
+    if (isLoading || !isBootstrappingMentions) {
+      return
+    }
+
+    void checkForNewMentions(lastSeenMatchedAt, { autoFetch: true })
+    const intervalId = setInterval(() => {
+      void checkForNewMentions(lastSeenMatchedAt, { autoFetch: true })
+    }, BOOTSTRAP_STATUS_CHECK_INTERVAL_MS)
+
+    return () => {
+      clearInterval(intervalId)
+    }
+  }, [checkForNewMentions, isBootstrappingMentions, isLoading, lastSeenMatchedAt])
+
+  useEffect(() => {
+    if (!isBootstrappingMentions || isLoading) {
+      return
+    }
+
+    if (mentions.length > 0) {
+      setIsBootstrappingMentions(false)
+      clearBootstrappingQueryParam()
+    }
+  }, [clearBootstrappingQueryParam, isBootstrappingMentions, isLoading, mentions.length])
 
   useEffect(() => {
     if (isLoading) {
@@ -406,6 +466,11 @@ export default function DashboardPage() {
 
           {error ? (
             <p className="mt-3 rounded-xl bg-destructive/10 px-4 py-2.5 text-sm text-destructive">{error}</p>
+          ) : null}
+          {!error && isBootstrappingMentions && mentions.length === 0 ? (
+            <p className="mt-3 rounded-xl border border-border/40 bg-secondary/20 px-4 py-2.5 text-sm text-muted-foreground">
+              Fetching data, please wait.
+            </p>
           ) : null}
 
           <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">

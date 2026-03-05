@@ -52,6 +52,7 @@ function PricingContent() {
   const [session, setSession] = useState<SessionData | null>(null)
   const [currentPlan, setCurrentPlan] = useState<PlanId | null>(null)
   const [isStartingTrial, setIsStartingTrial] = useState<PlanId | null>(null)
+  const [isChangingPlan, setIsChangingPlan] = useState<PlanId | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -104,6 +105,16 @@ function PricingContent() {
       setError(trialError instanceof Error ? trialError.message : "Unable to start trial.")
       setIsStartingTrial(null)
     }
+  }
+
+  function handleChangePlan(planId: PlanId) {
+    if (!session) {
+      router.replace(AUTH_ENTRY_PATH)
+      return
+    }
+    setIsChangingPlan(planId)
+    // Direct browser navigation to the API route which redirects to checkout or billing portal
+    window.location.href = `/api/billing/change-plan?plan=${planId}`
   }
 
   if (!ready) {
@@ -215,16 +226,17 @@ function PricingContent() {
                       Current plan
                     </span>
                   ) : (
-                    <Link
-                      href={session ? `/api/billing/change-plan?plan=${plan.id}` : AUTH_ENTRY_PATH}
-                      className={`mt-auto inline-flex h-12 w-full items-center justify-center rounded-full px-6 text-sm font-semibold transition-all active:scale-[0.98] ${
+                    <button
+                      onClick={() => handleChangePlan(planId)}
+                      disabled={isChangingPlan !== null}
+                      className={`mt-auto inline-flex h-12 w-full items-center justify-center rounded-full px-6 text-sm font-semibold transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 ${
                         isPopular
                           ? "bg-accent text-accent-foreground hover:brightness-95"
                           : "border border-border text-foreground hover:bg-secondary"
                       }`}
                     >
-                      Switch to {plan.name}
-                    </Link>
+                      {isChangingPlan === planId ? "Redirecting..." : `Switch to ${plan.name}`}
+                    </button>
                   )
                 ) : (
                   <button

@@ -125,7 +125,7 @@ export default function OnboardingPage() {
 
     try {
       await syncTrackingSetup(session, terms)
-      router.push("/dashboard")
+      router.push("/dashboard?bootstrapping=1")
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Failed to save onboarding")
     } finally {

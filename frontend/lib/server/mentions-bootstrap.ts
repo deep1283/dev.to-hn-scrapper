@@ -17,6 +17,14 @@ type BootstrapParams = {
   reason: "onboarding_completed" | "keyword_activated"
 }
 
+function cleanEnv(value: string | undefined): string | null {
+  if (!value) {
+    return null
+  }
+  const trimmed = value.trim()
+  return trimmed ? trimmed : null
+}
+
 function resolveWebhookTimeoutMs(): number {
   const raw = Number(process.env.MENTION_BOOTSTRAP_WEBHOOK_TIMEOUT_MS ?? DEFAULT_WEBHOOK_TIMEOUT_MS)
   if (!Number.isFinite(raw)) {
@@ -44,13 +52,13 @@ async function seedMatchesFromRecentMentions(accessToken: string, userId: string
   })
 }
 
-async function triggerRunNowWebhook(params: BootstrapParams): Promise<void> {
-  const webhookUrl = process.env.MENTION_BOOTSTRAP_WEBHOOK_URL?.trim()
+async function triggerRunNowWebhook(params: BootstrapParams): Promise<boolean> {
+  const webhookUrl = cleanEnv(process.env.MENTION_BOOTSTRAP_WEBHOOK_URL)
   if (!webhookUrl) {
-    return
+    return false
   }
 
-  const webhookToken = process.env.MENTION_BOOTSTRAP_WEBHOOK_TOKEN?.trim()
+  const webhookToken = cleanEnv(process.env.MENTION_BOOTSTRAP_WEBHOOK_TOKEN)
   const timeoutMs = resolveWebhookTimeoutMs()
   const abortController = new AbortController()
   const timer = setTimeout(() => abortController.abort(), timeoutMs)
@@ -82,9 +90,64 @@ async function triggerRunNowWebhook(params: BootstrapParams): Promise<void> {
       reason: params.reason,
       status: response.status,
     })
+    return true
   } finally {
     clearTimeout(timer)
   }
+}
+
+async function triggerGitHubWorkflowDispatch(params: BootstrapParams): Promise<boolean> {
+  const token = cleanEnv(process.env.MENTION_BOOTSTRAP_GITHUB_TOKEN)
+  const owner = cleanEnv(process.env.MENTION_BOOTSTRAP_GITHUB_OWNER)
+  const repo = cleanEnv(process.env.MENTION_BOOTSTRAP_GITHUB_REPO)
+  const workflow = cleanEnv(process.env.MENTION_BOOTSTRAP_GITHUB_WORKFLOW)
+
+  if (!token || !owner || !repo || !workflow) {
+    return false
+  }
+
+  const ref = cleanEnv(process.env.MENTION_BOOTSTRAP_GITHUB_REF) ?? "main"
+  const apiBase = cleanEnv(process.env.MENTION_BOOTSTRAP_GITHUB_API_BASE_URL) ?? "https://api.github.com"
+  const url = `${apiBase}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(
+    repo,
+  )}/actions/workflows/${encodeURIComponent(workflow)}/dispatches`
+
+  const response = await fetch(url, {
+    method: "POST",
+    cache: "no-store",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      ref,
+      inputs: {
+        reason: params.reason,
+        user_id: params.userId,
+        terms: String(params.termCount ?? ""),
+        requested_at: new Date().toISOString(),
+      },
+    }),
+  })
+
+  if (!response.ok) {
+    const details = await response.text().catch(() => "")
+    throw new Error(
+      `GitHub workflow dispatch failed (${response.status})${details ? `: ${details.slice(0, 240)}` : ""}`,
+    )
+  }
+
+  console.info("[mentions-bootstrap] Triggered GitHub workflow dispatch.", {
+    owner,
+    repo,
+    workflow,
+    ref,
+    reason: params.reason,
+    userId: params.userId,
+  })
+  return true
 }
 
 async function bootstrapMentions(params: BootstrapParams): Promise<void> {
@@ -99,9 +162,18 @@ async function bootstrapMentions(params: BootstrapParams): Promise<void> {
   }
 
   try {
-    await triggerRunNowWebhook(params)
+    const webhookTriggered = await triggerRunNowWebhook(params)
+    if (!webhookTriggered) {
+      const githubTriggered = await triggerGitHubWorkflowDispatch(params)
+      if (!githubTriggered) {
+        console.info("[mentions-bootstrap] No run-now trigger configured; waiting for scheduled worker run.", {
+          userId: params.userId,
+          reason: params.reason,
+        })
+      }
+    }
   } catch (error) {
-    console.warn("[mentions-bootstrap] Run-now webhook failed; worker cron will still pick up due tasks.", {
+    console.warn("[mentions-bootstrap] Run-now trigger failed; worker cron will still pick up due tasks.", {
       userId: params.userId,
       reason: params.reason,
       error: error instanceof Error ? error.message : String(error),

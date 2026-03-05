@@ -4,6 +4,23 @@ on:
   schedule:
     - cron: "*/15 * * * *"
   workflow_dispatch:
+    inputs:
+      reason:
+        description: "Trigger reason"
+        required: false
+        type: string
+      user_id:
+        description: "User id that triggered dispatch"
+        required: false
+        type: string
+      terms:
+        description: "Keyword count"
+        required: false
+        type: string
+      requested_at:
+        description: "ISO timestamp from trigger source"
+        required: false
+        type: string
 
 concurrency:
   group: mentions-worker-cron
@@ -46,6 +63,13 @@ jobs:
         run: |
           test -n "$DATABASE_URL" || (echo "Missing secret: DATABASE_URL" && exit 1)
           test -n "$GITHUB_TOKEN" || (echo "Missing secret: GH_DISCUSSIONS_TOKEN" && exit 1)
+
+      - name: Log trigger metadata
+        run: |
+          echo "reason=${{ github.event.inputs.reason || 'scheduled' }}"
+          echo "user_id=${{ github.event.inputs.user_id || '' }}"
+          echo "terms=${{ github.event.inputs.terms || '' }}"
+          echo "requested_at=${{ github.event.inputs.requested_at || '' }}"
 
       - name: Run mention worker
         working-directory: worker
