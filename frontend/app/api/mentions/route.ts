@@ -10,6 +10,7 @@ import { withSessionCookie } from "@/lib/server/session"
 
 export const dynamic = "force-dynamic"
 const HISTORY_DAYS = 7
+const MAX_PER_PLATFORM_LIMIT = 100
 const RATE_LIMITS = {
   burstPerUserIp: { limit: 8, windowMs: 10_000 },
   perUserMinute: { limit: 30, windowMs: 60_000 },
@@ -46,6 +47,23 @@ type MentionMatchRow = {
     community: string | null
     published_at: string
   } | null
+}
+
+function latestMatchedIso(rows: MentionMatchRow[]): string | null {
+  let latest: Date | null = null
+  for (const row of rows) {
+    if (!row.matched_at) {
+      continue
+    }
+    const parsed = new Date(row.matched_at)
+    if (Number.isNaN(parsed.getTime())) {
+      continue
+    }
+    if (!latest || parsed > latest) {
+      latest = parsed
+    }
+  }
+  return latest ? latest.toISOString() : null
 }
 
 function normalizeText(value: string): string {
@@ -151,23 +169,23 @@ export async function POST(request: NextRequest) {
     const body = await parseJsonBody<MentionBody>(request)
     const platforms = parsePlatforms(body.platforms, 10)
 
-    const perPlatformLimit = Math.min(Math.max(Number(body.limit ?? 100), 10), 300)
-    const platformFilter = `&mentions.platform=in.(${platforms.join(",")})`
+    const perPlatformLimit = Math.min(Math.max(Number(body.limit ?? 100), 10), MAX_PER_PLATFORM_LIMIT)
     const cutoff = new Date()
     cutoff.setUTCHours(0, 0, 0, 0)
     cutoff.setUTCDate(cutoff.getUTCDate() - HISTORY_DAYS)
     const timeFilter = `&mentions.published_at=gte.${encodeURIComponent(cutoff.toISOString())}`
-    const rowLimit = Math.min(perPlatformLimit * Math.max(platforms.length, 1) * 6, 3600)
-
-    const rows = await restRequest<MentionMatchRow[]>(
-      `/mention_matches?user_id=eq.${encodeURIComponent(
-        auth.userId,
-      )}&select=matched_query,matched_at,mentions!inner(platform,external_id,url,title,body_excerpt,author,community,published_at)${platformFilter}${timeFilter}&order=matched_at.desc&limit=${Math.min(
-        rowLimit,
-        3600,
-      )}`,
-      auth.accessToken,
+    const perPlatformRowLimit = Math.min(perPlatformLimit * 6, 1800)
+    const rowsByPlatform = await Promise.all(
+      platforms.map((platform) =>
+        restRequest<MentionMatchRow[]>(
+          `/mention_matches?user_id=eq.${encodeURIComponent(
+            auth.userId,
+          )}&select=matched_query,matched_at,mentions!inner(platform,external_id,url,title,body_excerpt,author,community,published_at)&mentions.platform=eq.${platform}${timeFilter}&order=matched_at.desc&limit=${perPlatformRowLimit}`,
+          auth.accessToken,
+        ),
+      ),
     )
+    const rows = rowsByPlatform.flat()
 
     const merged = new Map<string, Mention>()
     for (const row of rows) {
@@ -202,8 +220,7 @@ export async function POST(request: NextRequest) {
     const mentions = Array.from(merged.values())
       .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
     const independentMentions = limitMentionsPerPlatform(mentions, platforms, perPlatformLimit)
-    const latestMatchedAtRaw = rows.find((row) => typeof row.matched_at === "string" && row.matched_at.trim())?.matched_at ?? null
-    const latestMatchedAt = latestMatchedAtRaw ? toIso(latestMatchedAtRaw) : null
+    const latestMatchedAt = latestMatchedIso(rows)
 
     const response = NextResponse.json({
       fetchedAt: new Date().toISOString(),

@@ -19,7 +19,7 @@ export function Hero() {
             <span className="squiggly-underline">that matters</span>
           </h1>
           <p className="max-w-lg text-base leading-relaxed text-muted-foreground sm:text-lg">
-            Monitor HN, dev.to and GitHub Discussions for your brand or keywords. Engage early, grow faster.
+            Monitor HN, Dev.to and GitHub Discussions for your brand, competitors, or any keyword in your niche. Engage early, grow faster.
           </p>
 
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center">

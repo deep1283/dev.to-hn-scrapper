@@ -31,7 +31,7 @@ const structuredData = {
       "@type": "WebSite",
       name: "Signalze",
       url: appUrl,
-      description: "Monitor HN, dev.to and GitHub Discussions for your brand or keywords.",
+      description: "Monitor HN, Dev.to and GitHub Discussions for your brand, competitors, or any keyword in your niche.",
     },
     {
       "@type": "SoftwareApplication",
@@ -39,7 +39,7 @@ const structuredData = {
       applicationCategory: "BusinessApplication",
       operatingSystem: "Web",
       url: appUrl,
-      description: "Monitor HN, dev.to and GitHub Discussions for your brand or keywords. Engage early, grow faster.",
+      description: "Monitor HN, Dev.to and GitHub Discussions for your brand, competitors, or any keyword in your niche. Engage early, grow faster.",
       offers: [
         {
           "@type": "Offer",

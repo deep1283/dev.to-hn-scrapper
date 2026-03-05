@@ -9,7 +9,7 @@ const metadataBase = new URL(appUrl)
 const hasClerk = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)
 const defaultTitle = 'Signalze | Monitor HN, Dev.to, and GitHub Discussions'
 const defaultDescription =
-  'Monitor HN, dev.to and GitHub Discussions for your brand or keywords. Engage early, grow faster.'
+  'Monitor HN, Dev.to and GitHub Discussions for your brand, competitors, or any keyword in your niche. Engage early, grow faster.'
 
 export const metadata: Metadata = {
   metadataBase,

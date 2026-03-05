@@ -47,6 +47,7 @@ type MentionStatusResponse = {
 const HISTORY_DAYS = 7
 const STATUS_CHECK_INTERVAL_MS = 5 * 60_000
 const BOOTSTRAP_STATUS_CHECK_INTERVAL_MS = 15_000
+const PER_PLATFORM_DASHBOARD_LIMIT = 100
 
 function formatTime(isoTime: string): string {
   const date = new Date(isoTime)
@@ -119,7 +120,7 @@ export default function DashboardPage() {
         },
         body: JSON.stringify({
           platforms: ACTIVE_PLATFORMS,
-          limit: 150,
+          limit: PER_PLATFORM_DASHBOARD_LIMIT,
         }),
       })
 
