@@ -60,6 +60,20 @@ export default function PilotTestingPage() {
 
         <PilotTestingForm />
 
+        <section className="rounded-2xl border border-border/40 bg-card/50 p-5 text-sm text-foreground/90">
+          <p>
+            Prefer X?{" "}
+            <a
+              href="https://x.com/deepmishra1283"
+              target="_blank"
+              rel="noreferrer"
+              className="underline underline-offset-4"
+            >
+              @deepmishra1283
+            </a>
+          </p>
+        </section>
+
         <div className="border-t border-border/40 pt-4 text-sm text-muted-foreground">
           <Link href="/" className="hover:text-foreground">
             Back to home
