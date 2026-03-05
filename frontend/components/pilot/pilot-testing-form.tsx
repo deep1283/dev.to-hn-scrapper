@@ -129,15 +129,30 @@ export function PilotTestingForm() {
         {submitError ? (
           <p className="sm:col-span-2 rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">{submitError}</p>
         ) : null}
-
-        {submitted ? (
-          <p className="sm:col-span-2 rounded-md bg-primary/10 px-3 py-2 text-xs text-foreground">
-            Thanks, your pilot request has been submitted. We will contact you at your email address shortly.
-          </p>
-        ) : null}
       </form>
 
       <p className="mt-4 text-xs text-muted-foreground">We will contact you at your email address shortly.</p>
+
+      {submitted ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" role="dialog" aria-modal="true">
+          <div className="w-full max-w-md rounded-2xl border border-border/60 bg-card p-5 shadow-xl">
+            <div className="flex items-start justify-between gap-4">
+              <h3 className="font-serif text-xl text-foreground">Request submitted</h3>
+              <button
+                type="button"
+                onClick={() => setSubmitted(false)}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border/50 text-muted-foreground transition-colors hover:text-foreground"
+                aria-label="Close success message"
+              >
+                <span aria-hidden="true">X</span>
+              </button>
+            </div>
+            <p className="mt-3 text-sm text-muted-foreground">
+              Thanks, your pilot request has been submitted. We will contact you at your email address shortly.
+            </p>
+          </div>
+        </div>
+      ) : null}
     </section>
   )
 }
