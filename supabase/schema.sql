@@ -686,9 +686,24 @@ using (
 
 drop policy if exists "keyword_source_state_owner_select" on public.keyword_source_state;
 drop policy if exists "keyword_source_state_owner_all" on public.keyword_source_state;
+drop policy if exists "keyword_source_state_owner_insert" on public.keyword_source_state;
 create policy "keyword_source_state_owner_select"
 on public.keyword_source_state for select
 using (
+  exists (
+    select 1
+    from public.keywords k
+    where k.id = keyword_source_state.keyword_id
+      and (
+        k.user_id = (select auth.uid())
+        or k.user_id = public.requesting_profile_id()
+      )
+  )
+);
+
+create policy "keyword_source_state_owner_insert"
+on public.keyword_source_state for insert
+with check (
   exists (
     select 1
     from public.keywords k
@@ -717,4 +732,3 @@ create policy "api_rate_limits_service_role_only"
 on public.api_rate_limits for all
 using ((select auth.role()) = 'service_role')
 with check ((select auth.role()) = 'service_role');
-

@@ -124,5 +124,13 @@ export async function requireEntitledAuth(request: NextRequest) {
   const auth = await requireAuth(request)
   const profile = await ensureProfile(auth.accessToken, auth.userId, auth.email)
   ensureActiveEntitlement(profile)
-  return { ...auth, profile }
+  return {
+    ...auth,
+    userId: profile.id,
+    user: {
+      ...auth.user,
+      id: profile.id,
+    },
+    profile,
+  }
 }
