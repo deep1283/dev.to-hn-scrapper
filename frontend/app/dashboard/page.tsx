@@ -99,16 +99,20 @@ export default function DashboardPage() {
 
         let trialExpired = isTrialExpired(profile.billing_mode, profile.trial_ends_at)
 
-        // After checkout, the Dodo webhook may not have processed yet.
-        // Retry a few times to give it a chance to update billing_mode.
+        // After checkout, directly confirm billing status instead of waiting for webhook
         if (trialExpired && typeof window !== "undefined" && new URLSearchParams(window.location.search).has("checkout")) {
-          for (let attempt = 0; attempt < 4; attempt++) {
-            await new Promise((resolve) => setTimeout(resolve, 2000))
-            const freshProfile = await ensureProfile(validSession)
-            trialExpired = isTrialExpired(freshProfile.billing_mode, freshProfile.trial_ends_at)
-            if (!trialExpired) {
-              break
+          try {
+            const confirmRes = await fetch("/api/billing/confirm-checkout", {
+              method: "POST",
+              credentials: "include",
+              headers: { "Content-Type": "application/json" },
+            })
+            if (confirmRes.ok) {
+              const freshProfile = await ensureProfile(validSession)
+              trialExpired = isTrialExpired(freshProfile.billing_mode, freshProfile.trial_ends_at)
             }
+          } catch {
+            // Continue with the stale check if confirmation fails
           }
         }
 
