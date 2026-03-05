@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 
 import { requireEntitledAuth } from "@/lib/server/authz"
 import { badRequest, toErrorResponse, tooManyRequests } from "@/lib/server/errors"
-import { bootstrapMentionsAfterOnboarding } from "@/lib/server/mentions-bootstrap"
+import { bootstrapMentionsAfterOnboarding, type MentionsBootstrapResult } from "@/lib/server/mentions-bootstrap"
 import { getRequestIp, parseJsonBody } from "@/lib/server/request"
 import { takeRateLimit } from "@/lib/server/rate-limit"
 import {
@@ -89,17 +89,25 @@ export async function POST(request: NextRequest) {
     }
 
     const updatedProfile = await patchProfile(auth.accessToken, profileId, { onboarding_completed: true })
+    let bootstrapResult: MentionsBootstrapResult | null = null
     if (shouldBootstrapMentions && updatedProfile.onboarding_completed) {
-      await bootstrapMentionsAfterOnboarding({
+      bootstrapResult = await bootstrapMentionsAfterOnboarding({
         accessToken: auth.accessToken,
         userId: profileId,
         termCount: unifiedTerms.length,
       })
     }
 
+    const shouldShowBootstrapping = Boolean(bootstrapResult?.bootstrapping)
     const response = NextResponse.json({
       ok: true,
-      nextRoute: "/dashboard",
+      nextRoute: shouldShowBootstrapping ? "/dashboard?bootstrapping=1" : "/dashboard",
+      bootstrapping: shouldShowBootstrapping,
+      cacheHits: bootstrapResult?.cacheHits ?? 0,
+      cacheMisses: bootstrapResult?.cacheMisses ?? 0,
+      insertedMatches: bootstrapResult?.insertedMatches ?? 0,
+      triggeredRunNow: bootstrapResult?.triggeredRunNow ?? false,
+      jobId: bootstrapResult?.jobId ?? null,
     })
     return withSessionCookie(response, auth.sessionResult)
   } catch (error) {

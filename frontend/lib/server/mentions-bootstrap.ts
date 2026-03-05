@@ -8,6 +8,8 @@ const MAX_WEBHOOK_TIMEOUT_MS = 15_000
 type BootstrapMentionsResult = {
   inserted_matches?: number
   nudged_sources?: number
+  cache_hits?: number
+  cache_misses?: number
 }
 
 type BootstrapParams = {
@@ -15,6 +17,16 @@ type BootstrapParams = {
   userId: string
   termCount?: number
   reason: "onboarding_completed" | "keyword_activated"
+}
+
+export type MentionsBootstrapResult = {
+  insertedMatches: number
+  cacheHits: number
+  cacheMisses: number
+  missCount: number
+  triggeredRunNow: boolean
+  jobId?: string
+  bootstrapping: boolean
 }
 
 function cleanEnv(value: string | undefined): string | null {
@@ -33,7 +45,12 @@ function resolveWebhookTimeoutMs(): number {
   return Math.min(Math.max(Math.round(raw), MIN_WEBHOOK_TIMEOUT_MS), MAX_WEBHOOK_TIMEOUT_MS)
 }
 
-async function seedMatchesFromRecentMentions(accessToken: string, userId: string): Promise<void> {
+async function seedMatchesFromRecentMentions(accessToken: string, userId: string): Promise<{
+  insertedMatches: number
+  cacheHits: number
+  cacheMisses: number
+  nudgedSources: number
+}> {
   const payload = await restRequest<BootstrapMentionsResult>(`/rpc/bootstrap_mentions_for_user`, accessToken, {
     method: "POST",
     body: JSON.stringify({
@@ -45,17 +62,27 @@ async function seedMatchesFromRecentMentions(accessToken: string, userId: string
 
   const inserted = Number(payload.inserted_matches ?? 0)
   const nudged = Number(payload.nudged_sources ?? 0)
+  const cacheHits = Number(payload.cache_hits ?? 0)
+  const cacheMisses = Number(payload.cache_misses ?? 0)
   console.info("[mentions-bootstrap] Seeded mentions from cache.", {
     userId,
     insertedMatches: inserted,
+    cacheHits,
+    cacheMisses,
     nudgedSources: nudged,
   })
+  return {
+    insertedMatches: inserted,
+    cacheHits,
+    cacheMisses,
+    nudgedSources: nudged,
+  }
 }
 
-async function triggerRunNowWebhook(params: BootstrapParams): Promise<boolean> {
+async function triggerRunNowWebhook(params: BootstrapParams): Promise<{ triggered: boolean; jobId?: string }> {
   const webhookUrl = cleanEnv(process.env.MENTION_BOOTSTRAP_WEBHOOK_URL)
   if (!webhookUrl) {
-    return false
+    return { triggered: false }
   }
 
   const webhookToken = cleanEnv(process.env.MENTION_BOOTSTRAP_WEBHOOK_TOKEN)
@@ -90,20 +117,21 @@ async function triggerRunNowWebhook(params: BootstrapParams): Promise<boolean> {
       reason: params.reason,
       status: response.status,
     })
-    return true
+    const jobId = response.headers.get("x-job-id") ?? undefined
+    return { triggered: true, jobId }
   } finally {
     clearTimeout(timer)
   }
 }
 
-async function triggerGitHubWorkflowDispatch(params: BootstrapParams): Promise<boolean> {
+async function triggerGitHubWorkflowDispatch(params: BootstrapParams): Promise<{ triggered: boolean }> {
   const token = cleanEnv(process.env.MENTION_BOOTSTRAP_GITHUB_TOKEN)
   const owner = cleanEnv(process.env.MENTION_BOOTSTRAP_GITHUB_OWNER)
   const repo = cleanEnv(process.env.MENTION_BOOTSTRAP_GITHUB_REPO)
   const workflow = cleanEnv(process.env.MENTION_BOOTSTRAP_GITHUB_WORKFLOW)
 
   if (!token || !owner || !repo || !workflow) {
-    return false
+    return { triggered: false }
   }
 
   const ref = cleanEnv(process.env.MENTION_BOOTSTRAP_GITHUB_REF) ?? "main"
@@ -147,42 +175,74 @@ async function triggerGitHubWorkflowDispatch(params: BootstrapParams): Promise<b
     reason: params.reason,
     userId: params.userId,
   })
-  return true
+  return { triggered: true }
 }
 
-async function bootstrapMentions(params: BootstrapParams): Promise<void> {
+async function bootstrapMentions(params: BootstrapParams): Promise<MentionsBootstrapResult> {
+  let insertedMatches = 0
+  let cacheHits = 0
+  let cacheMisses = 0
+
   try {
-    await seedMatchesFromRecentMentions(params.accessToken, params.userId)
+    const seeded = await seedMatchesFromRecentMentions(params.accessToken, params.userId)
+    insertedMatches = seeded.insertedMatches
+    cacheHits = seeded.cacheHits
+    cacheMisses = seeded.cacheMisses
   } catch (error) {
     console.warn("[mentions-bootstrap] Cache bootstrap failed; continuing without blocking request.", {
       userId: params.userId,
       reason: params.reason,
       error: error instanceof Error ? error.message : String(error),
     })
+    cacheMisses = Math.max(params.termCount ?? 1, 1)
   }
 
-  try {
-    const webhookTriggered = await triggerRunNowWebhook(params)
-    if (!webhookTriggered) {
-      const githubTriggered = await triggerGitHubWorkflowDispatch(params)
-      if (!githubTriggered) {
-        console.info("[mentions-bootstrap] No run-now trigger configured; waiting for scheduled worker run.", {
-          userId: params.userId,
-          reason: params.reason,
-        })
+  const missCount = Math.max(cacheMisses, 0)
+  const shouldTriggerRunNow = missCount > 0
+  let triggeredRunNow = false
+  let jobId: string | undefined
+
+  if (shouldTriggerRunNow) {
+    try {
+      const webhookResult = await triggerRunNowWebhook(params)
+      if (webhookResult.triggered) {
+        triggeredRunNow = true
+        jobId = webhookResult.jobId
+      } else {
+        const githubResult = await triggerGitHubWorkflowDispatch(params)
+        if (githubResult.triggered) {
+          triggeredRunNow = true
+        } else {
+          console.info("[mentions-bootstrap] No run-now trigger configured; waiting for scheduled worker run.", {
+            userId: params.userId,
+            reason: params.reason,
+          })
+        }
       }
+    } catch (error) {
+      console.warn("[mentions-bootstrap] Run-now trigger failed; worker cron will still pick up due tasks.", {
+        userId: params.userId,
+        reason: params.reason,
+        error: error instanceof Error ? error.message : String(error),
+      })
     }
-  } catch (error) {
-    console.warn("[mentions-bootstrap] Run-now trigger failed; worker cron will still pick up due tasks.", {
-      userId: params.userId,
-      reason: params.reason,
-      error: error instanceof Error ? error.message : String(error),
-    })
+  }
+
+  return {
+    insertedMatches,
+    cacheHits,
+    cacheMisses: missCount,
+    missCount,
+    triggeredRunNow,
+    jobId,
+    bootstrapping: shouldTriggerRunNow && insertedMatches <= 0,
   }
 }
 
-export async function bootstrapMentionsAfterOnboarding(params: Omit<BootstrapParams, "reason">): Promise<void> {
-  await bootstrapMentions({
+export async function bootstrapMentionsAfterOnboarding(
+  params: Omit<BootstrapParams, "reason">,
+): Promise<MentionsBootstrapResult> {
+  return bootstrapMentions({
     ...params,
     reason: "onboarding_completed",
   })

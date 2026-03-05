@@ -35,6 +35,17 @@ type SessionPayload = {
   nextRoute: string
 }
 
+type OnboardingSetupPayload = {
+  ok: boolean
+  nextRoute: string
+  bootstrapping: boolean
+  cacheHits: number
+  cacheMisses: number
+  insertedMatches: number
+  triggeredRunNow: boolean
+  jobId: string | null
+}
+
 async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
     ...init,
@@ -168,8 +179,8 @@ export async function updateKeyword(
   return payload.keyword
 }
 
-export async function syncTrackingSetup(_session: SessionData, terms: string[]) {
-  await apiRequest<{ ok: boolean }>("/api/onboarding/setup", {
+export async function syncTrackingSetup(_session: SessionData, terms: string[]): Promise<OnboardingSetupPayload> {
+  return apiRequest<OnboardingSetupPayload>("/api/onboarding/setup", {
     method: "POST",
     body: JSON.stringify({
       terms,
