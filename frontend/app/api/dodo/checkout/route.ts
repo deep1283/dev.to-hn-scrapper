@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
         subscription_data: {
           trial_period_days: trialDays,
         },
-        return_url: `${appUrl}/login?checkout=return`,
+        return_url: `${appUrl}/dashboard?checkout=return`,
       }),
       cache: "no-store",
     })
