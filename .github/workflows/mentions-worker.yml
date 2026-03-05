@@ -1,0 +1,52 @@
+name: Mentions Worker Cron
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: mentions-worker-cron
+  cancel-in-progress: false
+
+jobs:
+  run-worker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      GITHUB_TOKEN: ${{ secrets.GH_DISCUSSIONS_TOKEN }}
+      FREE_TIER_MODE: "true"
+      POLL_INTERVAL_MINUTES: "15"
+      PLAN_STARTER_9_POLL_INTERVAL_MINUTES: "300"
+      PLAN_GROWTH_15_POLL_INTERVAL_MINUTES: "180"
+      SOURCE_HN_ENABLED: "true"
+      SOURCE_DEVTO_ENABLED: "true"
+      SOURCE_GITHUB_DISCUSSIONS_ENABLED: "true"
+      SOURCE_REDDIT_ENABLED: "false"
+      SOURCE_GOOGLE_ENABLED: "false"
+      SOURCE_BRAVE_ENABLED: "false"
+      SOURCE_PRODUCTHUNT_ENABLED: "false"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        working-directory: worker
+        run: pip install -r requirements.txt
+
+      - name: Validate required secrets
+        run: |
+          test -n "$DATABASE_URL" || (echo "Missing secret: DATABASE_URL" && exit 1)
+          test -n "$GITHUB_TOKEN" || (echo "Missing secret: GH_DISCUSSIONS_TOKEN" && exit 1)
+
+      - name: Run mention worker
+        working-directory: worker
+        run: python main.py
