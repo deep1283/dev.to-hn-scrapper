@@ -494,39 +494,24 @@ export async function patchProfile(
   return rows[0]
 }
 
-async function resolveProfileId(accessToken: string, userId: string): Promise<string> {
-  if (isUuid(userId)) {
-    return userId
-  }
-
-  const profile = await getProfile(accessToken, userId)
-  if (!profile?.id || !isUuid(profile.id)) {
-    throw new AppError(400, "Unable to resolve profile for this account.")
-  }
-
-  return profile.id
-}
-
 export async function listKeywords(
   accessToken: string,
   userId: string,
   includeInactive = false,
 ): Promise<KeywordRow[]> {
-  const profileId = await resolveProfileId(accessToken, userId)
   const activeFilter = includeInactive ? "" : "&is_active=is.true"
   return restRequest<KeywordRow[]>(
     `/keywords?user_id=eq.${encodeURIComponent(
-      profileId,
+      userId,
     )}${activeFilter}&select=id,query,is_active&order=created_at.asc`,
     accessToken,
   )
 }
 
 export async function insertKeyword(accessToken: string, userId: string, query: string): Promise<KeywordRow> {
-  const profileId = await resolveProfileId(accessToken, userId)
   const rows = await restRequest<KeywordRow[]>(`/keywords`, accessToken, {
     method: "POST",
-    body: JSON.stringify([{ user_id: profileId, query, is_active: true }]),
+    body: JSON.stringify([{ user_id: userId, query, is_active: true }]),
   })
   if (!rows[0]) {
     throw new AppError(400, "Failed to create keyword.")
@@ -540,9 +525,8 @@ export async function updateKeyword(
   keywordId: string,
   patch: Partial<KeywordRow>,
 ): Promise<KeywordRow> {
-  const profileId = await resolveProfileId(accessToken, userId)
   const rows = await restRequest<KeywordRow[]>(
-    `/keywords?id=eq.${encodeURIComponent(keywordId)}&user_id=eq.${encodeURIComponent(profileId)}`,
+    `/keywords?id=eq.${encodeURIComponent(keywordId)}&user_id=eq.${encodeURIComponent(userId)}`,
     accessToken,
     {
       method: "PATCH",
