@@ -38,8 +38,9 @@ function mergeTerms(...groups: string[][]): string[] {
 export async function POST(request: NextRequest) {
   try {
     const auth = await requireEntitledAuth(request)
+    const profileId = auth.profile.id
     const ip = getRequestIp(request)
-    const rate = await takeRateLimit(`onboarding:setup:${auth.userId}:${ip}`, 20, 60_000)
+    const rate = await takeRateLimit(`onboarding:setup:${profileId}:${ip}`, 20, 60_000)
     if (!rate.allowed) {
       throw tooManyRequests()
     }
@@ -58,18 +59,18 @@ export async function POST(request: NextRequest) {
 
     assertPlanCounts(profile.plan_tier, unifiedTerms)
 
-    const existingKeywords = await listKeywords(auth.accessToken, auth.userId, true)
+    const existingKeywords = await listKeywords(auth.accessToken, profileId, true)
     const keywordByLower = new Map(existingKeywords.map((keyword) => [keyword.query.toLowerCase(), keyword]))
 
     for (const keyword of unifiedTerms) {
       const existing = keywordByLower.get(keyword.toLowerCase())
       if (!existing) {
-        await insertKeyword(auth.accessToken, auth.userId, keyword)
+        await insertKeyword(auth.accessToken, profileId, keyword)
         continue
       }
 
       if (!existing.is_active || existing.query !== keyword) {
-        await updateKeyword(auth.accessToken, auth.userId, existing.id, {
+        await updateKeyword(auth.accessToken, profileId, existing.id, {
           is_active: true,
           query: keyword,
         })
@@ -81,17 +82,17 @@ export async function POST(request: NextRequest) {
         continue
       }
       if (!unifiedTerms.some((item) => item.toLowerCase() === existing.query.toLowerCase())) {
-        await updateKeyword(auth.accessToken, auth.userId, existing.id, {
+        await updateKeyword(auth.accessToken, profileId, existing.id, {
           is_active: false,
         })
       }
     }
 
-    const updatedProfile = await patchProfile(auth.accessToken, auth.userId, { onboarding_completed: true })
+    const updatedProfile = await patchProfile(auth.accessToken, profileId, { onboarding_completed: true })
     if (shouldBootstrapMentions && updatedProfile.onboarding_completed) {
       await bootstrapMentionsAfterOnboarding({
         accessToken: auth.accessToken,
-        userId: auth.userId,
+        userId: profileId,
         termCount: unifiedTerms.length,
       })
     }

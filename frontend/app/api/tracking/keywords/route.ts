@@ -23,8 +23,9 @@ type UpdateKeywordBody = {
 export async function GET(request: NextRequest) {
   try {
     const auth = await requireEntitledAuth(request)
+    const profileId = auth.profile.id
     const includeInactive = request.nextUrl.searchParams.get("includeInactive") === "true"
-    const keywords = await listKeywords(auth.accessToken, auth.userId, includeInactive)
+    const keywords = await listKeywords(auth.accessToken, profileId, includeInactive)
     const response = NextResponse.json({ keywords })
     return withSessionCookie(response, auth.sessionResult)
   } catch (error) {
@@ -35,8 +36,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const auth = await requireEntitledAuth(request)
+    const profileId = auth.profile.id
     const ip = getRequestIp(request)
-    const rate = await takeRateLimit(`tracking:keywords:create:${auth.userId}:${ip}`, 30, 60_000)
+    const rate = await takeRateLimit(`tracking:keywords:create:${profileId}:${ip}`, 30, 60_000)
     if (!rate.allowed) {
       throw tooManyRequests()
     }
@@ -47,7 +49,7 @@ export async function POST(request: NextRequest) {
       throw badRequest("Keyword must be between 2 and 120 characters.")
     }
 
-    const existingKeywords = await listKeywords(auth.accessToken, auth.userId, true)
+    const existingKeywords = await listKeywords(auth.accessToken, profileId, true)
     const existing = existingKeywords.find((keyword) => keyword.query.toLowerCase() === query.toLowerCase())
     if (existing?.is_active) {
       const response = NextResponse.json({ keyword: existing })
@@ -62,13 +64,13 @@ export async function POST(request: NextRequest) {
 
     const wasReactivated = Boolean(existing && !existing.is_active)
     const keyword = existing
-      ? await updateKeyword(auth.accessToken, auth.userId, existing.id, { is_active: true, query })
-      : await insertKeyword(auth.accessToken, auth.userId, query)
+      ? await updateKeyword(auth.accessToken, profileId, existing.id, { is_active: true, query })
+      : await insertKeyword(auth.accessToken, profileId, query)
 
     if (wasReactivated) {
       await bootstrapMentionsAfterKeywordActivation({
         accessToken: auth.accessToken,
-        userId: auth.userId,
+        userId: profileId,
       })
     }
 
@@ -82,8 +84,9 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const auth = await requireEntitledAuth(request)
+    const profileId = auth.profile.id
     const ip = getRequestIp(request)
-    const rate = await takeRateLimit(`tracking:keywords:update:${auth.userId}:${ip}`, 40, 60_000)
+    const rate = await takeRateLimit(`tracking:keywords:update:${profileId}:${ip}`, 40, 60_000)
     if (!rate.allowed) {
       throw tooManyRequests()
     }
@@ -111,7 +114,7 @@ export async function PATCH(request: NextRequest) {
     let wasReactivated = false
 
     if (patch.is_active) {
-      const existingKeywords = await listKeywords(auth.accessToken, auth.userId, true)
+      const existingKeywords = await listKeywords(auth.accessToken, profileId, true)
       const activeCount = existingKeywords.filter((keyword) => keyword.is_active && keyword.id !== body.id).length
       const plan = PLAN_CONFIG[auth.profile.plan_tier]
       if (activeCount >= plan.maxKeywords) {
@@ -121,12 +124,12 @@ export async function PATCH(request: NextRequest) {
       wasReactivated = Boolean(current && !current.is_active)
     }
 
-    const keyword = await updateKeyword(auth.accessToken, auth.userId, body.id, patch)
+    const keyword = await updateKeyword(auth.accessToken, profileId, body.id, patch)
 
     if (wasReactivated) {
       await bootstrapMentionsAfterKeywordActivation({
         accessToken: auth.accessToken,
-        userId: auth.userId,
+        userId: profileId,
       })
     }
 
