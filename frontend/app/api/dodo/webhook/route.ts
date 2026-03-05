@@ -144,8 +144,12 @@ function verifyWebhookSignature(request: NextRequest, rawBody: string, secret: s
   const webhookSignature = request.headers.get("webhook-signature")
 
   if (webhookId && webhookTimestamp && webhookSignature) {
+    // Svix/Dodo secrets are in format "whsec_<base64key>" — strip prefix and decode
+    const rawKey = secret.startsWith("whsec_") ? secret.slice("whsec_".length) : secret
+    const key = Buffer.from(rawKey, "base64")
+
     const signedPayload = `${webhookId}.${webhookTimestamp}.${rawBody}`
-    const expected = createHmac("sha256", secret).update(signedPayload, "utf8").digest("base64")
+    const expected = createHmac("sha256", key).update(signedPayload, "utf8").digest("base64")
     const candidates = parseSignatureCandidates(webhookSignature)
     return candidates.some((candidate) => safeEqual(candidate, expected))
   }
