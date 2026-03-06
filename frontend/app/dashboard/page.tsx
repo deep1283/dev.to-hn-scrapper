@@ -3,7 +3,9 @@
 import Image from "next/image"
 import Link from "next/link"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import useSWR from "swr"
 
+import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton"
 import { isTrialExpired } from "@/lib/client/billing"
 import {
   ACTIVE_PLATFORMS,
@@ -48,6 +50,7 @@ const HISTORY_DAYS = 7
 const STATUS_CHECK_INTERVAL_MS = 5 * 60_000
 const BOOTSTRAP_STATUS_CHECK_INTERVAL_MS = 15_000
 const PER_PLATFORM_DASHBOARD_LIMIT = 100
+const MENTIONS_CACHE_TTL_MS = 45_000
 
 function formatTime(isoTime: string): string {
   const date = new Date(isoTime)
@@ -84,15 +87,14 @@ function formatDayHeading(date: Date): string {
 
 export default function DashboardPage() {
   const [activePlatform, setActivePlatform] = useState<PlatformFilter>("all")
-  const [mentions, setMentions] = useState<Mention[]>([])
   const [keywordRows, setKeywordRows] = useState<KeywordRow[]>([])
+  const [profileId, setProfileId] = useState<string | null>(null)
 
   const [isLoading, setIsLoading] = useState(true)
-  const [isRefreshingMentions, setIsRefreshingMentions] = useState(false)
   const [hasNewMentions, setHasNewMentions] = useState(false)
   const [lastSeenMatchedAt, setLastSeenMatchedAt] = useState<string | null>(null)
   const [isBootstrappingMentions, setIsBootstrappingMentions] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [pageError, setPageError] = useState<string | null>(null)
   const statusCheckIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const clearBootstrappingQueryParam = useCallback(() => {
@@ -108,11 +110,17 @@ export default function DashboardPage() {
     window.history.replaceState({}, "", next)
   }, [])
 
-  const fetchMentions = useCallback(async () => {
-    setError(null)
-    setIsRefreshingMentions(true)
+  const mentionsKey = profileId ? ["mentions", profileId, PER_PLATFORM_DASHBOARD_LIMIT] as const : null
 
-    try {
+  const {
+    data: mentionsData,
+    error: mentionsError,
+    isLoading: isMentionsLoading,
+    isValidating: isMentionsValidating,
+    mutate: mutateMentions,
+  } = useSWR<MentionsApiResponse>(
+    mentionsKey,
+    async () => {
       const response = await fetch("/api/mentions", {
         method: "POST",
         headers: {
@@ -129,8 +137,26 @@ export default function DashboardPage() {
         throw new Error(payload?.error ?? "Failed to fetch mentions")
       }
 
-      const payload = (await response.json()) as MentionsApiResponse
-      setMentions(payload.mentions)
+      return (await response.json()) as MentionsApiResponse
+    },
+    {
+      dedupingInterval: MENTIONS_CACHE_TTL_MS,
+      revalidateOnFocus: false,
+      keepPreviousData: true,
+    },
+  )
+
+  const mentions = useMemo(() => mentionsData?.mentions ?? [], [mentionsData])
+  const isRefreshingMentions = isMentionsValidating && Boolean(mentionsData)
+  const error = pageError ?? (mentionsError instanceof Error ? mentionsError.message : null)
+
+  const fetchMentions = useCallback(async () => {
+    setPageError(null)
+    try {
+      const payload = await mutateMentions()
+      if (!payload) {
+        return
+      }
       setLastSeenMatchedAt(payload.latestMatchedAt ?? null)
       setHasNewMentions(false)
       if (payload.mentions.length > 0) {
@@ -138,11 +164,9 @@ export default function DashboardPage() {
         clearBootstrappingQueryParam()
       }
     } catch (fetchError) {
-      setError(fetchError instanceof Error ? fetchError.message : "Failed to fetch mentions")
-    } finally {
-      setIsRefreshingMentions(false)
+      setPageError(fetchError instanceof Error ? fetchError.message : "Failed to fetch mentions")
     }
-  }, [clearBootstrappingQueryParam])
+  }, [clearBootstrappingQueryParam, mutateMentions])
 
   const checkForNewMentions = useCallback(async (since: string | null, options?: { autoFetch?: boolean }) => {
     try {
@@ -225,23 +249,36 @@ export default function DashboardPage() {
           return
         }
 
+        setProfileId(profile.id)
         const keywords = await listKeywords(validSession)
         setKeywordRows(keywords)
-        await fetchMentions()
       } catch (bootstrapError) {
         const message = bootstrapError instanceof Error ? bootstrapError.message : "Failed to load dashboard"
         if (message.toLowerCase().includes("trial has ended")) {
           window.location.replace("/upgrade")
           return
         }
-        setError(message)
+        setPageError(message)
       } finally {
         setIsLoading(false)
       }
     }
 
     void bootstrap()
-  }, [fetchMentions])
+  }, [])
+
+  useEffect(() => {
+    if (!mentionsData) {
+      return
+    }
+
+    setLastSeenMatchedAt(mentionsData.latestMatchedAt ?? null)
+    setHasNewMentions(false)
+    if (mentionsData.mentions.length > 0) {
+      setIsBootstrappingMentions(false)
+      clearBootstrappingQueryParam()
+    }
+  }, [clearBootstrappingQueryParam, mentionsData])
 
   useEffect(() => {
     if (isLoading || isRefreshingMentions) {
@@ -382,12 +419,10 @@ export default function DashboardPage() {
     window.location.replace("/")
   }
 
-  if (isLoading) {
-    return (
-      <main className="min-h-screen bg-background px-4 py-8 sm:px-6 md:py-12">
-        <div className="mx-auto w-full max-w-3xl p-6 text-sm text-muted-foreground">Loading dashboard...</div>
-      </main>
-    )
+  const showInitialLoading = isLoading || (Boolean(profileId) && isMentionsLoading && !mentionsData && !mentionsError)
+
+  if (showInitialLoading) {
+    return <DashboardSkeleton />
   }
 
   return (
