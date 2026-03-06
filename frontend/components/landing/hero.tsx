@@ -21,9 +21,6 @@ export function Hero() {
           <p className="max-w-lg text-base leading-relaxed text-muted-foreground sm:text-lg">
             Track brand mentions, competitor mentions, and high-intent keyword discussions across HN, Dev.to, and GitHub Discussions. Engage early, support faster, and find buying signals sooner.
           </p>
-          <p className="max-w-lg text-sm leading-relaxed text-muted-foreground/90">
-            Signalze is built for founders, developer marketing teams, and DevRel teams that need one dashboard for the conversations that move pipeline and product feedback.
-          </p>
 
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
             <Link
