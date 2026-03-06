@@ -87,6 +87,7 @@ function formatDayHeading(date: Date): string {
 
 export default function DashboardPage() {
   const [activePlatform, setActivePlatform] = useState<PlatformFilter>("all")
+  const [activeKeyword, setActiveKeyword] = useState<string>("all")
   const [keywordRows, setKeywordRows] = useState<KeywordRow[]>([])
   const [profileId, setProfileId] = useState<string | null>(null)
 
@@ -333,27 +334,49 @@ export default function DashboardPage() {
     }
   }, [checkForNewMentions, isLoading, lastSeenMatchedAt])
 
-  const filteredMentions = useMemo(() => {
-    if (activePlatform === "all") {
+  const activeKeywords = useMemo(() => keywordRows.filter((item) => item.is_active), [keywordRows])
+
+  useEffect(() => {
+    if (activeKeyword === "all") {
+      return
+    }
+
+    const stillExists = activeKeywords.some((keyword) => keyword.query === activeKeyword)
+    if (!stillExists) {
+      setActiveKeyword("all")
+    }
+  }, [activeKeyword, activeKeywords])
+
+  const keywordFilteredMentions = useMemo(() => {
+    if (activeKeyword === "all") {
       return mentions
     }
-    return mentions.filter((mention) => mention.platform === activePlatform)
-  }, [mentions, activePlatform])
 
-  const activeKeywords = useMemo(() => keywordRows.filter((item) => item.is_active), [keywordRows])
+    const normalizedKeyword = activeKeyword.toLowerCase()
+    return mentions.filter((mention) =>
+      mention.matchedTerms.some((term) => term.toLowerCase() === normalizedKeyword),
+    )
+  }, [activeKeyword, mentions])
+
+  const filteredMentions = useMemo(() => {
+    if (activePlatform === "all") {
+      return keywordFilteredMentions
+    }
+    return keywordFilteredMentions.filter((mention) => mention.platform === activePlatform)
+  }, [keywordFilteredMentions, activePlatform])
 
   const counts = useMemo(() => {
     const byPlatform = Object.fromEntries(
       ACTIVE_PLATFORMS.map((platform) => [platform, 0]),
     ) as Record<ActivePlatform, number>
-    for (const mention of mentions) {
+    for (const mention of keywordFilteredMentions) {
       byPlatform[mention.platform] += 1
     }
     return {
-      total: mentions.length,
+      total: keywordFilteredMentions.length,
       byPlatform,
     }
-  }, [mentions])
+  }, [keywordFilteredMentions])
 
   const mentionTimeline = useMemo(() => {
     const now = new Date()
@@ -530,6 +553,25 @@ export default function DashboardPage() {
                 {platform === "all" ? "All" : PLATFORM_LABELS[platform]}
               </button>
             ))}
+          </div>
+
+          <div className="mt-4 flex flex-col gap-2 sm:max-w-xs">
+            <label htmlFor="keyword-filter" className="text-xs font-medium text-muted-foreground">
+              Keyword
+            </label>
+            <select
+              id="keyword-filter"
+              value={activeKeyword}
+              onChange={(event) => setActiveKeyword(event.target.value)}
+              className="h-11 w-full rounded-2xl border border-border/50 bg-card px-4 text-sm text-foreground outline-none transition-colors focus:border-border"
+            >
+              <option value="all">All keywords</option>
+              {activeKeywords.map((keyword) => (
+                <option key={keyword.id} value={keyword.query}>
+                  {keyword.query}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="mt-5 min-w-0 space-y-6">
