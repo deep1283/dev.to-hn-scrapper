@@ -13,13 +13,16 @@ export function Hero() {
       <div className="mx-auto grid max-w-6xl items-center gap-12 md:grid-cols-2 md:gap-16">
         {/* Left — Copy */}
         <Reveal className="flex flex-col gap-7" delay={0.05}>
-          <p className="font-handwriting text-lg text-primary">Brand monitoring that ships results</p>
+          <p className="font-handwriting text-lg text-primary">Brand monitoring for developer communities</p>
           <h1 className="font-serif text-3xl leading-[1.15] text-foreground sm:text-5xl md:text-6xl lg:text-[4.25rem]">
-            Never miss a conversation{" "}
-            <span className="squiggly-underline">that matters</span>
+            Monitor brand mentions on{" "}
+            <span className="squiggly-underline">Hacker News, Dev.to, and GitHub Discussions</span>
           </h1>
           <p className="max-w-lg text-base leading-relaxed text-muted-foreground sm:text-lg">
-            Monitor HN, Dev.to and GitHub Discussions for your brand, competitors, or any keyword in your niche. Engage early, grow faster.
+            Track brand mentions, competitor mentions, and high-intent keyword discussions across HN, Dev.to, and GitHub Discussions. Engage early, support faster, and find buying signals sooner.
+          </p>
+          <p className="max-w-lg text-sm leading-relaxed text-muted-foreground/90">
+            Signalze is built for founders, developer marketing teams, and DevRel teams that need one dashboard for the conversations that move pipeline and product feedback.
           </p>
 
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center">

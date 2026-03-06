@@ -1,4 +1,5 @@
 import Image from "next/image"
+import Link from "next/link"
 import { Reveal } from "@/components/landing/reveal"
 
 export function Platforms() {
@@ -80,12 +81,26 @@ export function Platforms() {
             <span className="font-sans font-bold">real-time data</span> and{" "}
             <span className="font-sans font-bold">active discussions</span>
           </p>
-          <a
-            href="#"
-            className="mt-4 inline-block rounded-full border border-border px-5 py-2 text-sm font-medium text-card-foreground transition-colors hover:bg-secondary"
-          >
-            Try it yourself
-          </a>
+          <div className="mt-5 flex flex-wrap gap-2">
+            <Link
+              href="/hacker-news-monitoring"
+              className="rounded-full border border-border px-4 py-2 text-sm font-medium text-card-foreground transition-colors hover:bg-secondary"
+            >
+              Hacker News monitoring
+            </Link>
+            <Link
+              href="/devto-monitoring"
+              className="rounded-full border border-border px-4 py-2 text-sm font-medium text-card-foreground transition-colors hover:bg-secondary"
+            >
+              Dev.to monitoring
+            </Link>
+            <Link
+              href="/github-discussions-monitoring"
+              className="rounded-full border border-border px-4 py-2 text-sm font-medium text-card-foreground transition-colors hover:bg-secondary"
+            >
+              GitHub Discussions monitoring
+            </Link>
+          </div>
         </Reveal>
       </div>
     </section>

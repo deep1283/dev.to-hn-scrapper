@@ -88,6 +88,24 @@ export function CTAFooter() {
               Pilot testing
             </Link>
             <Link
+              href="/hacker-news-monitoring"
+              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              HN monitoring
+            </Link>
+            <Link
+              href="/devto-monitoring"
+              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Dev.to monitoring
+            </Link>
+            <Link
+              href="/github-discussions-monitoring"
+              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              GitHub Discussions monitoring
+            </Link>
+            <Link
               href="/privacy"
               className="text-sm text-muted-foreground transition-colors hover:text-foreground"
             >

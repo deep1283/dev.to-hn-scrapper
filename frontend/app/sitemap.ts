@@ -4,7 +4,17 @@ import { resolveSiteUrl } from "@/lib/site-url"
 const appUrl = resolveSiteUrl()
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const routes = ['/', '/pricing', '/pilot-testing', '/privacy', '/terms', '/contact']
+  const routes = [
+    '/',
+    '/pricing',
+    '/pilot-testing',
+    '/privacy',
+    '/terms',
+    '/contact',
+    '/hacker-news-monitoring',
+    '/devto-monitoring',
+    '/github-discussions-monitoring',
+  ]
 
   return routes.map((route) => ({
     url: `${appUrl}${route}`,
