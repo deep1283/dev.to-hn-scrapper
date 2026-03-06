@@ -27,6 +27,23 @@ Python is a good fit for this workload because polling, normalization, retries, 
   - `growth_15` ($9): every 3 hours
   via `PLAN_STARTER_9_POLL_INTERVAL_MINUTES` and `PLAN_GROWTH_15_POLL_INTERVAL_MINUTES`.
 
+## GitHub Actions + cron-jobs.org (no GitHub schedule)
+Signalze can run the worker via GitHub Actions `workflow_dispatch`, with cron-jobs.org as the scheduler.
+
+1. Configure app env vars (frontend deployment):
+   - `MENTION_BOOTSTRAP_GITHUB_TOKEN`
+   - `MENTION_BOOTSTRAP_GITHUB_OWNER`
+   - `MENTION_BOOTSTRAP_GITHUB_REPO`
+   - `MENTION_BOOTSTRAP_GITHUB_WORKFLOW=mentions-worker.yml`
+   - `MENTION_BOOTSTRAP_GITHUB_REF=main`
+   - `CRON_MENTIONS_TOKEN` (or reuse `MENTION_BOOTSTRAP_WEBHOOK_TOKEN`)
+2. Create cron-jobs.org job:
+   - URL: `https://<your-domain>/api/cron/mentions?token=<CRON_MENTIONS_TOKEN>`
+   - Method: `GET` (or `POST`)
+   - Schedule: every 15 minutes
+3. The endpoint dispatches GitHub workflow `mentions-worker.yml`.
+4. Keep `workflow_dispatch` enabled in GitHub workflow; built-in GitHub `schedule` is optional and can be disabled.
+
 ## Render setup (ready in repo)
 - This repo includes [`/Users/deepmishra/vscode/signalze/render.yaml`](/Users/deepmishra/vscode/signalze/render.yaml) with a `starter` cron service:
   - schedule: every 15 minutes (`*/15 * * * *`)
