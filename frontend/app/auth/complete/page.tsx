@@ -1,5 +1,6 @@
 "use client"
 
+import { useAuth } from "@clerk/nextjs"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Suspense, useEffect, useMemo, useRef, useState } from "react"
@@ -68,10 +69,12 @@ async function loadSessionWithRetry(): Promise<SessionPayload> {
 function AuthCompleteContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const auth = useAuth()
   const didRun = useRef(false)
   const [error, setError] = useState<string | null>(null)
 
   const safeNext = useMemo(() => getSafeNext(searchParams.get("next")), [searchParams])
+  const sessionMissing = auth.isLoaded && !auth.isSignedIn
   const reauthHref = useMemo(() => {
     const params = new URLSearchParams()
     params.set("reauth", "1")
@@ -82,6 +85,10 @@ function AuthCompleteContent() {
   }, [safeNext])
 
   useEffect(() => {
+    if (!auth.isLoaded || !auth.isSignedIn) {
+      return
+    }
+
     if (didRun.current) {
       return
     }
@@ -99,14 +106,14 @@ function AuthCompleteContent() {
     }
 
     void finalize()
-  }, [router, safeNext])
+  }, [auth.isLoaded, auth.isSignedIn, router, safeNext])
 
-  if (error) {
+  if (error || sessionMissing) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-background px-4">
         <div className="w-full max-w-md rounded-2xl border border-border/60 bg-card p-6">
           <h1 className="font-serif text-2xl text-foreground">Sign-in failed</h1>
-          <p className="mt-2 text-sm text-muted-foreground">{error}</p>
+          <p className="mt-2 text-sm text-muted-foreground">{error ?? "Session not found."}</p>
           <Link
             href={reauthHref}
             className="mt-5 inline-flex h-10 items-center justify-center rounded-full bg-accent px-5 text-sm font-semibold text-accent-foreground"
