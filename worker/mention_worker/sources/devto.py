@@ -7,6 +7,7 @@ import httpx
 from mention_worker.models import MentionCandidate
 
 _DEVTO_ARTICLES_URL = "https://dev.to/api/articles"
+_DEVTO_LATEST_ARTICLES_URL = "https://dev.to/api/articles/latest"
 
 
 class DevToSource:
@@ -37,14 +38,14 @@ class DevToSource:
         results: list[MentionCandidate] = []
         seen_ids: set[str] = set()
         feeds = (
-            ("latest", {}),
-            ("top", {"top": self._top_days}),
+            ("latest", _DEVTO_LATEST_ARTICLES_URL, {}),
+            ("top", _DEVTO_ARTICLES_URL, {"top": self._top_days}),
         )
 
-        for feed_type, base_params in feeds:
+        for feed_type, feed_url, base_params in feeds:
             for page in range(1, self._max_pages + 1):
                 response = self._client.get(
-                    _DEVTO_ARTICLES_URL,
+                    feed_url,
                     params={
                         **base_params,
                         "per_page": self._page_size,

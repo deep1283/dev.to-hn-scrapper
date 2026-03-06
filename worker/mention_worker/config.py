@@ -161,7 +161,7 @@ def load_settings() -> Settings:
         reddit_client_secret=os.getenv("REDDIT_CLIENT_SECRET"),
         reddit_user_agent=os.getenv("REDDIT_USER_AGENT", "mention-worker/1.0"),
         devto_top_days=int(os.getenv("DEVTO_TOP_DAYS", "7")),
-        devto_page_size=int(os.getenv("DEVTO_PAGE_SIZE", "50")),
+        devto_page_size=int(os.getenv("DEVTO_PAGE_SIZE", "100")),
         devto_max_pages=int(os.getenv("DEVTO_MAX_PAGES", "2")),
         google_api_key=os.getenv("GOOGLE_API_KEY"),
         google_cse_id=os.getenv("GOOGLE_CSE_ID"),

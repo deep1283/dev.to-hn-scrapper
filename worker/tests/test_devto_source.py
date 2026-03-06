@@ -100,6 +100,21 @@ class DevToSourceTests(unittest.TestCase):
         self.assertEqual(results[0].external_id, "303")
         self.assertEqual(results[1].external_id, "404")
 
+    def test_search_uses_latest_endpoint_for_latest_feed(self) -> None:
+        now = datetime.now(tz=timezone.utc)
+        since = now - timedelta(days=1)
+        responses = {
+            ("latest", 1): [],
+            ("top", 1): [],
+        }
+        client = _FakeClient(responses)
+        source = DevToSource(client, top_days=7, page_size=20, max_pages=1)
+
+        source.search("signalze", since=since, limit=10)
+
+        self.assertEqual(client.calls[0]["url"], "https://dev.to/api/articles/latest")
+        self.assertEqual(client.calls[1]["url"], "https://dev.to/api/articles")
+
 
 if __name__ == "__main__":
     unittest.main()

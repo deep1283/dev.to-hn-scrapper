@@ -126,4 +126,4 @@ python main.py
 ## Notes
 - Use Supabase service-level DB credentials for `DATABASE_URL`.
 - `slack_webhook_url_enc` is treated as raw webhook URL by this scaffold. If you store encrypted values, decrypt before sending or add a decryption layer in worker code.
-- Dev.to support is best-effort because full public query search is limited in their API. Signalze now scans both latest and top feeds with bounded pagination (`DEVTO_PAGE_SIZE`, `DEVTO_MAX_PAGES`) to improve recall without unbounded API calls.
+- Dev.to support is best-effort because full public query search is limited in their API. Signalze scans the real latest articles endpoint plus top feeds with bounded pagination (`DEVTO_PAGE_SIZE`, `DEVTO_MAX_PAGES`) to improve recall without unbounded API calls.
