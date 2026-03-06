@@ -349,7 +349,11 @@ export default function SignInPage() {
         })
 
         if (signInAttempt.status !== "complete" || !signInAttempt.createdSessionId) {
-          throw new Error("Unable to verify OTP.")
+          throw new Error(
+            signInAttempt.status === "needs_second_factor"
+              ? "2FA is not supported in this flow."
+              : `Sign-in incomplete. Clerk status: ${signInAttempt.status}`
+          )
         }
 
         await setActiveClient({ session: signInAttempt.createdSessionId })
@@ -363,7 +367,11 @@ export default function SignInPage() {
         })
 
         if (signUpAttempt.status !== "complete" || !signUpAttempt.createdSessionId) {
-          throw new Error("Unable to verify OTP.")
+          throw new Error(
+            signUpAttempt.status === "missing_requirements"
+              ? "Sign-up incomplete. Please disable 'Name' or 'Password' requirements in your Clerk Dashboard."
+              : `Sign-up incomplete. Clerk status: ${signUpAttempt.status}`
+          )
         }
 
         await setActiveClient({ session: signUpAttempt.createdSessionId })
