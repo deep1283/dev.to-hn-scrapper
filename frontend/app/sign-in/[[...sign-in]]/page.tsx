@@ -7,9 +7,9 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from "react"
 import { useAuth, useClerk, useSignIn, useSignUp } from "@clerk/nextjs"
 
 import { BrandIllustration } from "@/components/auth/brand-illustration"
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp"
 
 const AUTH_PROVIDER_TIMEOUT_ERROR = "auth_provider_timeout"
-const MAGIC_LINK_DELIVERY_NOTICE_MS = 10000
 
 function getErrorMessage(error: unknown, fallback: string): string {
   if (error && typeof error === "object") {
@@ -69,11 +69,15 @@ export default function SignInPage() {
 
   const [email, setEmail] = useState("")
   const [isGoogleRedirecting, setIsGoogleRedirecting] = useState(false)
-  const [isMagicLinkSending, setIsMagicLinkSending] = useState(false)
+  const [isEmailOtpSending, setIsEmailOtpSending] = useState(false)
+  const [isEmailOtpVerifying, setIsEmailOtpVerifying] = useState(false)
   const [isResettingSession, setIsResettingSession] = useState(false)
+  const [emailAuthStep, setEmailAuthStep] = useState<"collect-email" | "verify-code">("collect-email")
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null)
+  const [pendingStrategy, setPendingStrategy] = useState<"sign-in" | "sign-up" | null>(null)
+  const [verificationCode, setVerificationCode] = useState("")
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const magicLinkAttemptRef = useRef(0)
   const didResetSessionRef = useRef(false)
 
   const next = searchParams.get("next")
@@ -194,15 +198,38 @@ export default function SignInPage() {
     }
   }
 
-  async function handleSendMagicLink(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
+  async function sendExistingUserEmailCode(signInClient: NonNullable<typeof signIn>, normalizedEmail: string) {
+    const signInAttempt = await signInClient.create({ identifier: normalizedEmail })
+    const emailCodeFactor = signInAttempt.supportedFirstFactors?.find((factor) => factor.strategy === "email_code")
 
-    if (!isLoaded || !signIn || !signUp || !setActive) {
+    if (!emailCodeFactor || !("emailAddressId" in emailCodeFactor) || !emailCodeFactor.emailAddressId) {
+      throw new Error("Email OTP is not enabled for this sign-in flow.")
+    }
+
+    await signInClient.prepareFirstFactor({
+      strategy: "email_code",
+      emailAddressId: emailCodeFactor.emailAddressId,
+    })
+  }
+
+  async function sendNewUserEmailCode(signUpClient: NonNullable<typeof signUp>, normalizedEmail: string) {
+    await signUpClient.create({ emailAddress: normalizedEmail })
+    await signUpClient.prepareEmailAddressVerification({ strategy: "email_code" })
+  }
+
+  function resetEmailOtpState() {
+    setEmailAuthStep("collect-email")
+    setPendingEmail(null)
+    setPendingStrategy(null)
+    setVerificationCode("")
+  }
+
+  async function startEmailOtpFlow() {
+    if (!isLoaded || !signIn || !signUp) {
       return
     }
     const signInClient = signIn
     const signUpClient = signUp
-    const setActiveClient = setActive
 
     const emailInput = email.trim().toLowerCase()
     if (!emailInput) {
@@ -212,69 +239,8 @@ export default function SignInPage() {
 
     setError(null)
     setSuccessMessage(null)
-    setIsMagicLinkSending(true)
+    setIsEmailOtpSending(true)
     let normalizedEmail = emailInput
-
-    const protocol = window.location.protocol
-    const host = window.location.host
-    const redirectUrl = `${protocol}//${host}/sign-in/verify?next=${encodeURIComponent(redirectAfterAuth)}`
-
-    async function startSignInMagicLink() {
-      const { supportedFirstFactors } = await signInClient.create({ identifier: normalizedEmail })
-      const emailLinkFactor = supportedFirstFactors?.find((factor) => factor.strategy === "email_link")
-      if (!emailLinkFactor || !("emailAddressId" in emailLinkFactor) || !emailLinkFactor.emailAddressId) {
-        throw new Error("Magic link is not enabled for this email sign-in flow.")
-      }
-      const { startEmailLinkFlow } = signInClient.createEmailLinkFlow()
-      const signInAttempt = await startEmailLinkFlow({
-        emailAddressId: emailLinkFactor.emailAddressId,
-        redirectUrl,
-      })
-      return signInAttempt
-    }
-
-    async function startSignUpMagicLink() {
-      await signUpClient.create({ emailAddress: normalizedEmail })
-      const { startEmailLinkFlow } = signUpClient.createEmailLinkFlow()
-      const signUpAttempt = await startEmailLinkFlow({ redirectUrl })
-      return signUpAttempt
-    }
-
-    const attemptId = Date.now()
-    magicLinkAttemptRef.current = attemptId
-    let markedAsDispatched = false
-    const deliveryNoticeTimer = window.setTimeout(() => {
-      markedAsDispatched = true
-      if (magicLinkAttemptRef.current === attemptId) {
-        setError(null)
-        setSuccessMessage("Check your inbox.")
-        setIsMagicLinkSending(false)
-      }
-    }, MAGIC_LINK_DELIVERY_NOTICE_MS)
-
-    async function runMagicLinkFlow() {
-      const signInAttempt = await startSignInMagicLink()
-      if (signInAttempt.status === "complete" && signInAttempt.createdSessionId) {
-        await setActiveClient({ session: signInAttempt.createdSessionId })
-        if (magicLinkAttemptRef.current === attemptId) {
-          router.replace(redirectAfterAuth)
-        }
-        return
-      }
-      const verification = signInAttempt.firstFactorVerification
-      if (verification.verifiedFromTheSameClient()) {
-        if (magicLinkAttemptRef.current === attemptId) {
-          router.replace(redirectAfterAuth)
-        }
-        return
-      }
-
-      if (magicLinkAttemptRef.current === attemptId) {
-        setSuccessMessage("Magic link sent.")
-        setIsMagicLinkSending(false)
-      }
-      return
-    }
 
     try {
       const preflight = await postPreflight<{ email?: string }>("/api/auth/clerk/magic-link/preflight", {
@@ -284,56 +250,130 @@ export default function SignInPage() {
         normalizedEmail = preflight.email.trim().toLowerCase()
       }
 
-      await runMagicLinkFlow()
+      await sendExistingUserEmailCode(signInClient, normalizedEmail)
+      setPendingStrategy("sign-in")
+      setPendingEmail(normalizedEmail)
+      setVerificationCode("")
+      setEmailAuthStep("verify-code")
+      setSuccessMessage("OTP sent.")
     } catch (signInError) {
-      if (isProviderTimeoutError(signInError)) {
-        if (magicLinkAttemptRef.current === attemptId) {
-          setError("Magic link request is taking too long. Please try again.")
-        }
-        return
-      }
-
-      const message = getErrorMessage(signInError, "Unable to send magic link.")
+      const message = getErrorMessage(signInError, "Unable to send OTP.")
       if (!isIdentifierNotFoundError(signInError)) {
-        if (!markedAsDispatched && magicLinkAttemptRef.current === attemptId) {
-          setError(message)
-        }
+        setError(message)
         return
       }
 
       try {
-        const signUpAttempt = await startSignUpMagicLink()
-        if (signUpAttempt.status === "complete" && signUpAttempt.createdSessionId) {
-          await setActiveClient({ session: signUpAttempt.createdSessionId })
-          if (magicLinkAttemptRef.current === attemptId) {
-            router.replace(redirectAfterAuth)
-          }
-          return
-        }
-
-        const verification = signUpAttempt.verifications.emailAddress
-        if (verification.verifiedFromTheSameClient()) {
-          if (magicLinkAttemptRef.current === attemptId) {
-            router.replace(redirectAfterAuth)
-          }
-          return
-        }
-
-        if (magicLinkAttemptRef.current === attemptId) {
-          setSuccessMessage("Magic link sent.")
-          setIsMagicLinkSending(false)
-        }
+        await sendNewUserEmailCode(signUpClient, normalizedEmail)
+        setPendingStrategy("sign-up")
+        setPendingEmail(normalizedEmail)
+        setVerificationCode("")
+        setEmailAuthStep("verify-code")
+        setSuccessMessage("OTP sent.")
       } catch (signUpError) {
-        const signUpMessage = getErrorMessage(signUpError, "Unable to send magic link.")
-        if (!markedAsDispatched && magicLinkAttemptRef.current === attemptId) {
-          setError(signUpMessage)
-        }
+        const signUpMessage = getErrorMessage(signUpError, "Unable to send OTP.")
+        setError(signUpMessage)
       }
     } finally {
-      window.clearTimeout(deliveryNoticeTimer)
-      if (magicLinkAttemptRef.current === attemptId) {
-        setIsMagicLinkSending(false)
+      setIsEmailOtpSending(false)
+    }
+  }
+
+  async function handleSendEmailOtp(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    await startEmailOtpFlow()
+  }
+
+  async function handleResendEmailOtp() {
+    if (!isLoaded || !pendingEmail || !pendingStrategy) {
+      return
+    }
+
+    setError(null)
+    setSuccessMessage(null)
+    setIsEmailOtpSending(true)
+
+    try {
+      await postPreflight<{ email?: string }>("/api/auth/clerk/magic-link/preflight", {
+        email: pendingEmail,
+      })
+
+      if (pendingStrategy === "sign-in") {
+        if (!signIn) {
+          throw new Error("Sign-in is still loading.")
+        }
+        await sendExistingUserEmailCode(signIn, pendingEmail)
+      } else {
+        if (!signUp) {
+          throw new Error("Sign-up is still loading.")
+        }
+        await signUp.prepareEmailAddressVerification({ strategy: "email_code" })
       }
+
+      setSuccessMessage("OTP sent.")
+      setVerificationCode("")
+    } catch (resendError) {
+      setError(getErrorMessage(resendError, "Unable to resend OTP."))
+    } finally {
+      setIsEmailOtpSending(false)
+    }
+  }
+
+  async function handleVerifyEmailOtp(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    if (!isLoaded || !setActive || !pendingStrategy) {
+      return
+    }
+
+    const setActiveClient = setActive
+    const normalizedCode = verificationCode.trim()
+    if (normalizedCode.length < 6) {
+      setError("Enter the 6-digit OTP.")
+      return
+    }
+
+    setError(null)
+    setSuccessMessage(null)
+    setIsEmailOtpVerifying(true)
+
+    try {
+      if (pendingStrategy === "sign-in") {
+        if (!signIn) {
+          throw new Error("Sign-in is still loading.")
+        }
+
+        const signInAttempt = await signIn.attemptFirstFactor({
+          strategy: "email_code",
+          code: normalizedCode,
+        })
+
+        if (signInAttempt.status !== "complete" || !signInAttempt.createdSessionId) {
+          throw new Error("Unable to verify OTP.")
+        }
+
+        await setActiveClient({ session: signInAttempt.createdSessionId })
+      } else {
+        if (!signUp) {
+          throw new Error("Sign-up is still loading.")
+        }
+
+        const signUpAttempt = await signUp.attemptEmailAddressVerification({
+          code: normalizedCode,
+        })
+
+        if (signUpAttempt.status !== "complete" || !signUpAttempt.createdSessionId) {
+          throw new Error("Unable to verify OTP.")
+        }
+
+        await setActiveClient({ session: signUpAttempt.createdSessionId })
+      }
+
+      router.replace(redirectAfterAuth)
+    } catch (verificationError) {
+      setError(getErrorMessage(verificationError, "Unable to verify OTP."))
+    } finally {
+      setIsEmailOtpVerifying(false)
     }
   }
 
@@ -373,13 +413,13 @@ export default function SignInPage() {
             <div className="mt-8">
               <p className="font-handwriting text-lg text-primary">Welcome back</p>
               <h1 className="mt-1 font-serif text-2xl text-foreground sm:text-4xl">Sign in</h1>
-              <p className="mt-2 text-sm text-muted-foreground">Use Google or magic link to continue.</p>
+              <p className="mt-2 text-sm text-muted-foreground">Use Google or email OTP to continue.</p>
             </div>
 
             <button
               type="button"
               onClick={() => void handleGoogleSignIn()}
-              disabled={!isLoaded || isGoogleRedirecting || isMagicLinkSending || isResettingSession}
+              disabled={!isLoaded || isGoogleRedirecting || isEmailOtpSending || isEmailOtpVerifying || isResettingSession}
               className="mt-6 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-input bg-card px-4 text-sm font-semibold text-foreground transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-70"
             >
               <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
@@ -397,19 +437,72 @@ export default function SignInPage() {
               <div className="h-px flex-1 bg-border/70" />
             </div>
 
-            <form onSubmit={handleSendMagicLink} className="flex flex-col gap-4">
+            <form onSubmit={emailAuthStep === "collect-email" ? handleSendEmailOtp : handleVerifyEmailOtp} className="flex flex-col gap-4">
               <label className="flex flex-col gap-1.5 text-sm font-medium text-foreground">
                 Email
                 <input
                   type="email"
                   required
                   value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  disabled={!isLoaded || isGoogleRedirecting || isMagicLinkSending || isResettingSession}
+                  onChange={(event) => {
+                    setEmail(event.target.value)
+                    if (emailAuthStep === "verify-code") {
+                      resetEmailOtpState()
+                      setSuccessMessage(null)
+                    }
+                  }}
+                  disabled={!isLoaded || isGoogleRedirecting || isEmailOtpSending || isEmailOtpVerifying || isResettingSession || emailAuthStep === "verify-code"}
                   className="h-11 w-full rounded-xl border border-input bg-background px-4 text-base text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-accent/40 md:text-sm"
                   placeholder="you@company.com"
                 />
               </label>
+
+              {emailAuthStep === "verify-code" ? (
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <label className="text-sm font-medium text-foreground">OTP</label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setError(null)
+                        setSuccessMessage(null)
+                        setEmail(pendingEmail ?? email)
+                        resetEmailOtpState()
+                      }}
+                      disabled={isEmailOtpSending || isEmailOtpVerifying || isResettingSession}
+                      className="text-xs font-medium text-primary transition-colors hover:text-primary/80 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      Use another email
+                    </button>
+                  </div>
+
+                  <InputOTP
+                    maxLength={6}
+                    value={verificationCode}
+                    onChange={(value) => {
+                      setVerificationCode(value)
+                      if (error) {
+                        setError(null)
+                      }
+                    }}
+                    disabled={!isLoaded || isGoogleRedirecting || isEmailOtpSending || isEmailOtpVerifying || isResettingSession}
+                    containerClassName="justify-between"
+                  >
+                    <InputOTPGroup className="w-full justify-between gap-2">
+                      <InputOTPSlot index={0} className="h-12 w-12 rounded-xl border text-base first:rounded-xl first:border last:rounded-xl" />
+                      <InputOTPSlot index={1} className="h-12 w-12 rounded-xl border text-base first:rounded-xl first:border last:rounded-xl" />
+                      <InputOTPSlot index={2} className="h-12 w-12 rounded-xl border text-base first:rounded-xl first:border last:rounded-xl" />
+                      <InputOTPSlot index={3} className="h-12 w-12 rounded-xl border text-base first:rounded-xl first:border last:rounded-xl" />
+                      <InputOTPSlot index={4} className="h-12 w-12 rounded-xl border text-base first:rounded-xl first:border last:rounded-xl" />
+                      <InputOTPSlot index={5} className="h-12 w-12 rounded-xl border text-base first:rounded-xl first:border last:rounded-xl" />
+                    </InputOTPGroup>
+                  </InputOTP>
+
+                  <p className="text-xs text-muted-foreground">
+                    Enter the 6-digit OTP sent to <span className="font-medium text-foreground">{pendingEmail ?? email}</span>.
+                  </p>
+                </div>
+              ) : null}
 
               {error ? <p className="rounded-xl bg-destructive/10 px-4 py-2.5 text-sm text-destructive">{error}</p> : null}
               {successMessage ? (
@@ -418,12 +511,30 @@ export default function SignInPage() {
 
               <button
                 type="submit"
-                disabled={!isLoaded || isGoogleRedirecting || isMagicLinkSending || isResettingSession}
+                disabled={!isLoaded || isGoogleRedirecting || isEmailOtpSending || isEmailOtpVerifying || isResettingSession}
                 className="mt-1 inline-flex h-11 w-full items-center justify-center rounded-full bg-accent px-6 text-sm font-semibold text-accent-foreground transition-all hover:brightness-95 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
               >
-                {isResettingSession ? "Preparing sign-in..." : isMagicLinkSending ? "Sending magic link..." : "Send magic link"}
+                {isResettingSession
+                  ? "Preparing sign-in..."
+                  : isEmailOtpSending
+                    ? "Sending OTP..."
+                    : isEmailOtpVerifying
+                      ? "Verifying OTP..."
+                      : emailAuthStep === "verify-code"
+                        ? "Verify OTP"
+                        : "Send OTP"}
               </button>
 
+              {emailAuthStep === "verify-code" ? (
+                <button
+                  type="button"
+                  onClick={() => void handleResendEmailOtp()}
+                  disabled={!isLoaded || isGoogleRedirecting || isEmailOtpSending || isEmailOtpVerifying || isResettingSession}
+                  className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Resend OTP
+                </button>
+              ) : null}
             </form>
 
 
