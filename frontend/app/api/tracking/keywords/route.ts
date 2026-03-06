@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
       ? await updateKeyword(auth.accessToken, profileId, existing.id, { is_active: true, query })
       : await insertKeyword(auth.accessToken, profileId, query)
 
-    if (wasReactivated) {
+    if (wasReactivated || !existing) {
       await bootstrapMentionsAfterKeywordActivation({
         accessToken: auth.accessToken,
         userId: profileId,
