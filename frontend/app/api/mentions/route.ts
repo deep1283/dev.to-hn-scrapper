@@ -37,6 +37,9 @@ type MentionBody = {
 type MentionMatchRow = {
   matched_query: string
   matched_at: string | null
+  keywords: {
+    is_active: boolean
+  } | null
   mentions: {
     platform: ActivePlatform
     external_id: string
@@ -180,7 +183,7 @@ export async function POST(request: NextRequest) {
         restRequest<MentionMatchRow[]>(
           `/mention_matches?user_id=eq.${encodeURIComponent(
             auth.userId,
-          )}&select=matched_query,matched_at,mentions!inner(platform,external_id,url,title,body_excerpt,author,community,published_at)&mentions.platform=eq.${platform}${timeFilter}&order=matched_at.desc&limit=${perPlatformRowLimit}`,
+          )}&select=matched_query,matched_at,keywords!inner(is_active),mentions!inner(platform,external_id,url,title,body_excerpt,author,community,published_at)&keywords.is_active=is.true&mentions.platform=eq.${platform}${timeFilter}&order=matched_at.desc&limit=${perPlatformRowLimit}`,
           auth.accessToken,
         ),
       ),

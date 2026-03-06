@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from "react"
 import { isTrialExpired } from "@/lib/client/billing"
 import { PLAN_CONFIG, type PlanId } from "@/lib/plans"
 import {
+  bootstrapKeywordMentions,
   ensureProfile,
   getValidSession,
   insertKeyword,
@@ -64,9 +65,11 @@ export default function SettingsPage() {
 
   const [keywordInput, setKeywordInput] = useState("")
   const [keywordRows, setKeywordRows] = useState<KeywordRow[]>([])
+  const [hasPendingKeywordBootstrap, setHasPendingKeywordBootstrap] = useState(false)
 
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
+  const [isKeywordBootstrapping, setIsKeywordBootstrapping] = useState(false)
   const [isSlackSaving, setIsSlackSaving] = useState(false)
   const [isSlackTesting, setIsSlackTesting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -173,14 +176,32 @@ export default function SettingsPage() {
           setKeywordRows((current) => current.map((row) => (row.id === updated.id ? updated : row)))
         }
       } else {
-        const inserted = await insertKeyword(session, normalized)
+        const inserted = await insertKeyword(session, normalized, { deferBootstrap: true })
         setKeywordRows((current) => [...current, inserted])
       }
+      setHasPendingKeywordBootstrap(true)
       setKeywordInput("")
     } catch (addError) {
       setError(addError instanceof Error ? addError.message : "Failed to add keyword")
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  async function finalizeKeywordChanges() {
+    if (!session || !hasPendingKeywordBootstrap) {
+      return
+    }
+
+    setError(null)
+    setIsKeywordBootstrapping(true)
+    try {
+      await bootstrapKeywordMentions()
+      setHasPendingKeywordBootstrap(false)
+    } catch (bootstrapError) {
+      setError(bootstrapError instanceof Error ? bootstrapError.message : "Failed to refresh mentions for new keywords.")
+    } finally {
+      setIsKeywordBootstrapping(false)
     }
   }
 
@@ -555,6 +576,9 @@ export default function SettingsPage() {
                 <h2 className="font-handwriting text-2xl text-card-foreground sm:text-3xl">Keywords</h2>
                 <span className="text-xs font-medium text-muted-foreground">{activeKeywords.length}/{planConfig.maxKeywords}</span>
               </div>
+              <p className="mt-2 font-handwriting text-sm text-muted-foreground/90">
+                type one keyword, click add, then type the next one, click add, and click done when finished
+              </p>
               <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                 <input
                   value={keywordInput}
@@ -575,6 +599,15 @@ export default function SettingsPage() {
                   className="h-10 w-full rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
                 >
                   {keywordLimitReached ? "Limit reached" : "Add"}
+                </button>
+              </div>
+              <div className="mt-3">
+                <button
+                  onClick={() => void finalizeKeywordChanges()}
+                  disabled={!hasPendingKeywordBootstrap || isKeywordBootstrapping || isSaving}
+                  className="inline-flex h-10 items-center justify-center rounded-full border border-border/40 px-5 text-sm font-medium text-foreground transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {isKeywordBootstrapping ? "Running..." : "Done"}
                 </button>
               </div>
               <div className="mt-4 flex flex-wrap gap-2">

@@ -171,6 +171,9 @@ export default function DashboardPage() {
 
   const checkForNewMentions = useCallback(async (since: string | null, options?: { autoFetch?: boolean }) => {
     try {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") {
+        return
+      }
       const searchParams = new URLSearchParams()
       if (since) {
         searchParams.set("since", since)
@@ -285,7 +288,7 @@ export default function DashboardPage() {
     if (isLoading || isRefreshingMentions) {
       return
     }
-    void checkForNewMentions(lastSeenMatchedAt)
+    void checkForNewMentions(lastSeenMatchedAt, { autoFetch: true })
   }, [checkForNewMentions, isLoading, isRefreshingMentions, lastSeenMatchedAt])
 
   useEffect(() => {
@@ -324,7 +327,7 @@ export default function DashboardPage() {
     }
 
     statusCheckIntervalRef.current = setInterval(() => {
-      void checkForNewMentions(lastSeenMatchedAt)
+      void checkForNewMentions(lastSeenMatchedAt, { autoFetch: true })
     }, STATUS_CHECK_INTERVAL_MS)
 
     return () => {

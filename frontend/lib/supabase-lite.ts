@@ -155,10 +155,14 @@ export async function listKeywords(_session: SessionData, includeInactive = fals
   return payload.keywords
 }
 
-export async function insertKeyword(_session: SessionData, query: string): Promise<KeywordRow> {
+export async function insertKeyword(
+  _session: SessionData,
+  query: string,
+  options?: { deferBootstrap?: boolean },
+): Promise<KeywordRow> {
   const payload = await apiRequest<{ keyword: KeywordRow }>("/api/tracking/keywords", {
     method: "POST",
-    body: JSON.stringify({ query }),
+    body: JSON.stringify({ query, deferBootstrap: options?.deferBootstrap === true }),
   })
   return payload.keyword
 }
@@ -185,5 +189,11 @@ export async function syncTrackingSetup(_session: SessionData, terms: string[]):
     body: JSON.stringify({
       terms,
     }),
+  })
+}
+
+export async function bootstrapKeywordMentions(): Promise<void> {
+  await apiRequest<{ ok: boolean }>("/api/tracking/keywords/bootstrap", {
+    method: "POST",
   })
 }

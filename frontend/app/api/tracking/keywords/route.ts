@@ -12,6 +12,7 @@ import { normalizeInput } from "@/lib/server/validation"
 
 type CreateKeywordBody = {
   query?: string
+  deferBootstrap?: boolean
 }
 
 type UpdateKeywordBody = {
@@ -45,6 +46,7 @@ export async function POST(request: NextRequest) {
 
     const body = await parseJsonBody<CreateKeywordBody>(request)
     const query = normalizeInput(body.query ?? "")
+    const deferBootstrap = body.deferBootstrap === true
     if (query.length < 2 || query.length > 120) {
       throw badRequest("Keyword must be between 2 and 120 characters.")
     }
@@ -67,7 +69,7 @@ export async function POST(request: NextRequest) {
       ? await updateKeyword(auth.accessToken, profileId, existing.id, { is_active: true, query })
       : await insertKeyword(auth.accessToken, profileId, query)
 
-    if (wasReactivated || !existing) {
+    if (!deferBootstrap && (wasReactivated || !existing)) {
       await bootstrapMentionsAfterKeywordActivation({
         accessToken: auth.accessToken,
         userId: profileId,
