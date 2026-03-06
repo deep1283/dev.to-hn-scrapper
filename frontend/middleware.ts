@@ -14,17 +14,17 @@ const clerkAuthMiddleware = clerkMiddleware(async (auth, request) => {
   const { pathname } = request.nextUrl
 
   if (!isProtected(pathname)) {
-    return NextResponse.next()
+    return
   }
 
   const hasSupabaseSession = Boolean(request.cookies.get(SESSION_COOKIE)?.value)
   if (hasSupabaseSession) {
-    return NextResponse.next()
+    return
   }
 
   const { userId } = await auth()
   if (userId) {
-    return NextResponse.next()
+    return
   }
 
   const signInUrl = request.nextUrl.clone()
