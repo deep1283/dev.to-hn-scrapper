@@ -9,6 +9,7 @@ import { useAuth, useClerk, useSignIn, useSignUp } from "@clerk/nextjs"
 import { BrandIllustration } from "@/components/auth/brand-illustration"
 
 const AUTH_PROVIDER_TIMEOUT_ERROR = "auth_provider_timeout"
+const MAGIC_LINK_DELIVERY_NOTICE_MS = 10000
 
 function getErrorMessage(error: unknown, fallback: string): string {
   if (error && typeof error === "object") {
@@ -241,6 +242,15 @@ export default function SignInPage() {
 
     const attemptId = Date.now()
     magicLinkAttemptRef.current = attemptId
+    let markedAsDispatched = false
+    const deliveryNoticeTimer = window.setTimeout(() => {
+      markedAsDispatched = true
+      if (magicLinkAttemptRef.current === attemptId) {
+        setError(null)
+        setSuccessMessage("Check your inbox.")
+        setIsMagicLinkSending(false)
+      }
+    }, MAGIC_LINK_DELIVERY_NOTICE_MS)
 
     async function runMagicLinkFlow() {
       const signInAttempt = await startSignInMagicLink()
@@ -260,7 +270,8 @@ export default function SignInPage() {
       }
 
       if (magicLinkAttemptRef.current === attemptId) {
-        setSuccessMessage("Magic link sent. Check your inbox and spam folder.")
+        setSuccessMessage("Magic link sent.")
+        setIsMagicLinkSending(false)
       }
       return
     }
@@ -284,7 +295,7 @@ export default function SignInPage() {
 
       const message = getErrorMessage(signInError, "Unable to send magic link.")
       if (!isIdentifierNotFoundError(signInError)) {
-        if (magicLinkAttemptRef.current === attemptId) {
+        if (!markedAsDispatched && magicLinkAttemptRef.current === attemptId) {
           setError(message)
         }
         return
@@ -309,15 +320,17 @@ export default function SignInPage() {
         }
 
         if (magicLinkAttemptRef.current === attemptId) {
-          setSuccessMessage("Account created. Magic link sent. Check your inbox and spam folder.")
+          setSuccessMessage("Magic link sent.")
+          setIsMagicLinkSending(false)
         }
       } catch (signUpError) {
         const signUpMessage = getErrorMessage(signUpError, "Unable to send magic link.")
-        if (magicLinkAttemptRef.current === attemptId) {
+        if (!markedAsDispatched && magicLinkAttemptRef.current === attemptId) {
           setError(signUpMessage)
         }
       }
     } finally {
+      window.clearTimeout(deliveryNoticeTimer)
       if (magicLinkAttemptRef.current === attemptId) {
         setIsMagicLinkSending(false)
       }
