@@ -203,12 +203,23 @@ async function bootstrapMentions(params: BootstrapParams): Promise<MentionsBoots
   let jobId: string | undefined
 
   if (shouldTriggerRunNow) {
+    let webhookResult: { triggered: boolean; jobId?: string } = { triggered: false }
     try {
-      const webhookResult = await triggerRunNowWebhook(params)
+      webhookResult = await triggerRunNowWebhook(params)
       if (webhookResult.triggered) {
         triggeredRunNow = true
         jobId = webhookResult.jobId
-      } else {
+      }
+    } catch (error) {
+      console.warn("[mentions-bootstrap] Run-now webhook failed; trying direct GitHub dispatch.", {
+        userId: params.userId,
+        reason: params.reason,
+        error: error instanceof Error ? error.message : String(error),
+      })
+    }
+
+    if (!webhookResult.triggered) {
+      try {
         const githubResult = await triggerGitHubWorkflowDispatch(params)
         if (githubResult.triggered) {
           triggeredRunNow = true
@@ -218,12 +229,19 @@ async function bootstrapMentions(params: BootstrapParams): Promise<MentionsBoots
             reason: params.reason,
           })
         }
+      } catch (error) {
+        console.warn("[mentions-bootstrap] Run-now trigger failed; worker cron will still pick up due tasks.", {
+          userId: params.userId,
+          reason: params.reason,
+          error: error instanceof Error ? error.message : String(error),
+        })
       }
-    } catch (error) {
-      console.warn("[mentions-bootstrap] Run-now trigger failed; worker cron will still pick up due tasks.", {
+    }
+
+    if (!triggeredRunNow) {
+      console.warn("[mentions-bootstrap] Run-now dispatch unavailable; waiting for periodic scheduler.", {
         userId: params.userId,
         reason: params.reason,
-        error: error instanceof Error ? error.message : String(error),
       })
     }
   }

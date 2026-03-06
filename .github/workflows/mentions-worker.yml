@@ -1,8 +1,6 @@
 name: Mentions Worker Cron
 
 on:
-  schedule:
-    - cron: "*/15 * * * *"
   workflow_dispatch:
     inputs:
       reason:
@@ -66,7 +64,7 @@ jobs:
 
       - name: Log trigger metadata
         run: |
-          echo "reason=${{ github.event.inputs.reason || 'scheduled' }}"
+          echo "reason=${{ github.event.inputs.reason || 'workflow_dispatch' }}"
           echo "user_id=${{ github.event.inputs.user_id || '' }}"
           echo "terms=${{ github.event.inputs.terms || '' }}"
           echo "requested_at=${{ github.event.inputs.requested_at || '' }}"
