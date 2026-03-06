@@ -114,7 +114,7 @@ function PricingContent() {
     }
     setIsChangingPlan(planId)
     // Direct browser navigation to the API route which redirects to checkout or billing portal
-    window.location.href = `/api/billing/change-plan?plan=${planId}`
+    window.location.assign(`/api/billing/change-plan?plan=${planId}`)
   }
 
   if (!ready) {
