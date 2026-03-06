@@ -426,8 +426,8 @@ export default function DashboardPage() {
   }
 
   return (
-    <main className="min-h-screen bg-background px-4 py-6 sm:px-6 md:py-10">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
+    <main className="min-h-screen overflow-x-hidden bg-background px-4 py-6 sm:px-6 md:py-10">
+      <div className="mx-auto flex w-full min-w-0 max-w-6xl flex-col gap-6">
         <header className="p-2 sm:p-3">
           <div className="flex items-center justify-between gap-4">
             <Link href="/" className="inline-flex items-center gap-3" aria-label="Signalze home">
@@ -462,7 +462,7 @@ export default function DashboardPage() {
           </div>
         </header>
 
-        <section className="p-2 sm:p-3">
+        <section className="min-w-0 p-2 sm:p-3">
           <h2 className="font-handwriting text-3xl text-card-foreground">Tracking now</h2>
           <div className="mt-3">
             <p className="text-xs font-medium text-muted-foreground">Keywords</p>
@@ -480,7 +480,7 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        <section className="p-2 sm:p-3">
+        <section className="min-w-0 p-2 sm:p-3">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="font-handwriting text-3xl text-card-foreground">Mentions</h2>
             <div className="flex flex-col items-start gap-1 sm:items-end">
@@ -509,7 +509,7 @@ export default function DashboardPage() {
             </p>
           ) : null}
 
-          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="mt-5 grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-4">
             <StatCard label="Total" value={counts.total} />
             {ACTIVE_PLATFORMS.map((platform) => (
               <StatCard key={platform} label={PLATFORM_LABELS[platform]} value={counts.byPlatform[platform]} />
@@ -532,11 +532,11 @@ export default function DashboardPage() {
             ))}
           </div>
 
-          <div className="mt-5 space-y-6">
-            <section className="rounded-2xl border border-border/50 bg-secondary/25 p-4">
+          <div className="mt-5 min-w-0 space-y-6">
+            <section className="min-w-0 rounded-2xl border border-border/50 bg-secondary/25 p-4">
               <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Today</h3>
               {mentionTimeline.today.length ? (
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <div className="mt-3 grid min-w-0 gap-3 sm:grid-cols-2">
                   {mentionTimeline.today.map((mention) => (
                     <MentionCard key={`${mention.platform}:${mention.externalId}`} mention={mention} />
                   ))}
@@ -547,10 +547,10 @@ export default function DashboardPage() {
             </section>
 
             {mentionTimeline.previousDays.map((day) => (
-              <section key={day.key} className="rounded-2xl border border-border/40 p-4">
+              <section key={day.key} className="min-w-0 rounded-2xl border border-border/40 p-4">
                 <h3 className="text-sm font-semibold text-muted-foreground">{day.label}</h3>
                 {day.mentions.length ? (
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <div className="mt-3 grid min-w-0 gap-3 sm:grid-cols-2">
                     {day.mentions.map((mention) => (
                       <MentionCard key={`${mention.platform}:${mention.externalId}`} mention={mention} />
                     ))}
@@ -604,8 +604,8 @@ function StatCard({
   value: number
 }) {
   return (
-    <div className="px-1 py-2">
-      <p className="text-xs text-muted-foreground">{label}</p>
+    <div className="min-w-0 px-1 py-2">
+      <p className="text-xs text-muted-foreground [overflow-wrap:anywhere]">{label}</p>
       <p className="mt-1 font-serif text-2xl text-foreground">{value}</p>
     </div>
   )
@@ -613,29 +613,31 @@ function StatCard({
 
 function MentionCard({ mention }: { mention: Mention }) {
   return (
-    <article className="rounded-xl border border-border/40 p-4">
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <span className="rounded-full border border-border/40 px-2.5 py-1 text-xs font-semibold text-foreground">
+    <article className="min-w-0 overflow-hidden rounded-xl border border-border/40 p-4">
+      <div className="mb-2 flex min-w-0 items-center justify-between gap-2">
+        <span className="min-w-0 rounded-full border border-border/40 px-2.5 py-1 text-xs font-semibold text-foreground">
           {PLATFORM_LABELS[mention.platform]}
         </span>
-        <span className="text-xs text-muted-foreground">{formatTime(mention.publishedAt)}</span>
+        <span className="shrink-0 text-xs text-muted-foreground">{formatTime(mention.publishedAt)}</span>
       </div>
 
       <a
         href={mention.url}
         target="_blank"
         rel="noreferrer"
-        className="line-clamp-2 text-base font-semibold text-foreground hover:underline"
+        className="line-clamp-2 block min-w-0 text-base font-semibold text-foreground [overflow-wrap:anywhere] hover:underline"
       >
         {mention.title}
       </a>
 
-      <p className="mt-2 line-clamp-3 text-sm text-muted-foreground">{mention.excerpt || "No excerpt available."}</p>
+      <p className="mt-2 line-clamp-3 min-w-0 text-sm text-muted-foreground [overflow-wrap:anywhere]">
+        {mention.excerpt || "No excerpt available."}
+      </p>
 
-      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-        <span>{mention.community ?? "Unknown community"}</span>
+      <div className="mt-3 flex min-w-0 flex-wrap items-center gap-2 text-xs text-muted-foreground">
+        <span className="[overflow-wrap:anywhere]">{mention.community ?? "Unknown community"}</span>
         <span>•</span>
-        <span>{mention.author ?? "Unknown author"}</span>
+        <span className="[overflow-wrap:anywhere]">{mention.author ?? "Unknown author"}</span>
       </div>
 
       {mention.matchedTerms.length ? (

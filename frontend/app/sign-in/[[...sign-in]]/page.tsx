@@ -8,7 +8,6 @@ import { useAuth, useClerk, useSignIn, useSignUp } from "@clerk/nextjs"
 
 import { BrandIllustration } from "@/components/auth/brand-illustration"
 
-const AUTH_PROVIDER_TIMEOUT_MS = 20000
 const AUTH_PROVIDER_TIMEOUT_ERROR = "auth_provider_timeout"
 
 function getErrorMessage(error: unknown, fallback: string): string {
@@ -182,7 +181,7 @@ export default function SignInPage() {
           redirectUrl: "/sign-in/sso-callback",
           redirectUrlComplete: redirectAfterAuth,
         }),
-        AUTH_PROVIDER_TIMEOUT_MS,
+        20000,
       )
     } catch (signInError) {
       if (isProviderTimeoutError(signInError)) {
@@ -274,7 +273,7 @@ export default function SignInPage() {
         normalizedEmail = preflight.email.trim().toLowerCase()
       }
 
-      await withTimeout(runMagicLinkFlow(), AUTH_PROVIDER_TIMEOUT_MS)
+      await runMagicLinkFlow()
     } catch (signInError) {
       if (isProviderTimeoutError(signInError)) {
         if (magicLinkAttemptRef.current === attemptId) {
@@ -292,7 +291,7 @@ export default function SignInPage() {
       }
 
       try {
-        const signUpAttempt = await withTimeout(startSignUpMagicLink(), AUTH_PROVIDER_TIMEOUT_MS)
+        const signUpAttempt = await startSignUpMagicLink()
         if (signUpAttempt.status === "complete" && signUpAttempt.createdSessionId) {
           await setActiveClient({ session: signUpAttempt.createdSessionId })
           if (magicLinkAttemptRef.current === attemptId) {
@@ -313,13 +312,6 @@ export default function SignInPage() {
           setSuccessMessage("Account created. Magic link sent. Check your inbox and spam folder.")
         }
       } catch (signUpError) {
-        if (isProviderTimeoutError(signUpError)) {
-          if (magicLinkAttemptRef.current === attemptId) {
-            setError("Magic link request is taking too long. Please try again.")
-          }
-          return
-        }
-
         const signUpMessage = getErrorMessage(signUpError, "Unable to send magic link.")
         if (magicLinkAttemptRef.current === attemptId) {
           setError(signUpMessage)
