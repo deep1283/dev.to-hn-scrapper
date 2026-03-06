@@ -4,8 +4,6 @@ import { NextFetchEvent, NextRequest, NextResponse } from "next/server"
 const SESSION_COOKIE = "signalze_session"
 const PROTECTED_PATHS = ["/dashboard", "/onboarding", "/upgrade"]
 const CLERK_SESSION_COOKIE = "__session"
-const hasClerkConfigured = Boolean(process.env.CLERK_SECRET_KEY && process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)
-
 function isProtected(pathname: string): boolean {
   return PROTECTED_PATHS.some((base) => pathname === base || pathname.startsWith(`${base}/`))
 }
@@ -33,8 +31,10 @@ const clerkAuthMiddleware = clerkMiddleware(async (auth, request) => {
   return NextResponse.redirect(signInUrl)
 })
 
-export function middleware(request: NextRequest, event: NextFetchEvent) {
-  if (hasClerkConfigured) {
+export default function middleware(request: NextRequest, event: NextFetchEvent) {
+  const isClerkConfigured = Boolean(process.env.CLERK_SECRET_KEY && process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)
+
+  if (isClerkConfigured) {
     return clerkAuthMiddleware(request, event)
   }
 
