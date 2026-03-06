@@ -13,7 +13,7 @@ export function Hero() {
       <div className="mx-auto grid max-w-6xl items-center gap-12 md:grid-cols-2 md:gap-16">
         {/* Left — Copy */}
         <Reveal className="flex flex-col gap-7" delay={0.05}>
-          <p className="font-handwriting text-lg text-primary">Brand monitoring for developer communities</p>
+          <p className="font-handwriting text-lg text-primary">Your product is being talked about right now. Are you seeing it?</p>
           <h1 className="font-serif text-3xl leading-[1.15] text-foreground sm:text-5xl md:text-6xl lg:text-[4.25rem]">
             Never miss a conversation{" "}
             <span className="squiggly-underline">that matters</span>
