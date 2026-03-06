@@ -15,6 +15,7 @@ export default function UpgradePage() {
   const router = useRouter()
   const [ready, setReady] = useState(false)
   const [session, setSession] = useState<SessionData | null>(null)
+  const [isUpgrading, setIsUpgrading] = useState<PlanId | null>(null)
 
   useEffect(() => {
     async function bootstrap() {
@@ -148,16 +149,25 @@ export default function UpgradePage() {
                   )}
                 </ul>
 
-                <Link
-                  href={ctaHref}
-                  className={`mt-auto inline-flex h-12 w-full items-center justify-center rounded-full px-6 text-sm font-semibold transition-all active:scale-[0.98] ${
+                <button
+                  type="button"
+                  disabled={isUpgrading !== null}
+                  onClick={() => {
+                    if (!session) {
+                      router.push("/login")
+                      return
+                    }
+                    setIsUpgrading(planId)
+                    window.location.assign(`/api/dodo/checkout?plan=${planId}&billing=paid`)
+                  }}
+                  className={`mt-auto inline-flex h-12 w-full items-center justify-center rounded-full px-6 text-sm font-semibold transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 ${
                     isPopular
                       ? "bg-accent text-accent-foreground hover:brightness-95"
                       : "border border-border text-foreground hover:bg-secondary"
                   }`}
                 >
-                  Upgrade now
-                </Link>
+                  {isUpgrading === planId ? "Upgrading..." : "Upgrade now"}
+                </button>
               </article>
             )
           })}
