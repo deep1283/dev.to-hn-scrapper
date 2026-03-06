@@ -15,8 +15,8 @@ export function Hero() {
         <Reveal className="flex flex-col gap-7" delay={0.05}>
           <p className="font-handwriting text-lg text-primary">Brand monitoring for developer communities</p>
           <h1 className="font-serif text-3xl leading-[1.15] text-foreground sm:text-5xl md:text-6xl lg:text-[4.25rem]">
-            Monitor brand mentions on{" "}
-            <span className="squiggly-underline">Hacker News, Dev.to, and GitHub Discussions</span>
+            Never miss a conversation{" "}
+            <span className="squiggly-underline">that matters</span>
           </h1>
           <p className="max-w-lg text-base leading-relaxed text-muted-foreground sm:text-lg">
             Track brand mentions, competitor mentions, and high-intent keyword discussions across HN, Dev.to, and GitHub Discussions. Engage early, support faster, and find buying signals sooner.
