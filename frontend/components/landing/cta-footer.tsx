@@ -51,92 +51,71 @@ export function CTAFooter() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-border/40 px-4 py-10 sm:px-6">
-        <Reveal className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 md:flex-row">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-3"
-            aria-label="Signalze home"
-          >
-            <Image
-              src="/logo.png"
-              alt="Signalze"
-              width={640}
-              height={640}
-              className="h-10 w-10 rounded-md object-cover"
-            />
-            <span className="font-serif text-xl font-bold text-foreground">signalze</span>
-          </Link>
-          <div className="flex flex-wrap items-center justify-center gap-6">
-            <Link
-              href="#features"
-              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-            >
-              Features
-            </Link>
+      <footer className="border-t border-border/40 px-4 py-12 sm:px-6 md:py-16">
+        <Reveal className="mx-auto max-w-6xl">
+          <div className="grid gap-12 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5">
+            {/* Brand Column */}
+            <div className="flex flex-col gap-4 lg:col-span-2">
+              <Link
+                href="/"
+                className="inline-flex items-center gap-3"
+                aria-label="Signalze home"
+              >
+                <Image
+                  src="/logo.png"
+                  alt="Signalze"
+                  width={640}
+                  height={640}
+                  className="h-8 w-8 rounded-md object-cover"
+                />
+                <span className="font-serif text-xl font-bold text-foreground">signalze</span>
+              </Link>
+              <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">
+                Never miss a conversation that matters. Monitor Hacker News, Dev.to, and GitHub Discussions for brand mentions and buying signals.
+              </p>
+              <div className="mt-2 flex gap-4">
+                <Link
+                  href="https://x.com/deepmishra1283"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-muted-foreground transition-colors hover:text-foreground"
+                  aria-label="Follow Signalze updates on X"
+                >
+                  <XLogo className="h-5 w-5" />
+                </Link>
+              </div>
+            </div>
 
-            <Link
-              href="/#pricing"
-              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-            >
-              Pricing
-            </Link>
-            <Link
-              href="/pilot-testing"
-              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-            >
-              Pilot testing
-            </Link>
-            <Link
-              href="/hacker-news-monitoring"
-              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-            >
-              HN monitoring
-            </Link>
-            <Link
-              href="/devto-monitoring"
-              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-            >
-              Dev.to monitoring
-            </Link>
-            <Link
-              href="/github-discussions-monitoring"
-              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-            >
-              GitHub Discussions monitoring
-            </Link>
-            <Link
-              href="/privacy"
-              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-            >
-              Privacy
-            </Link>
-            <Link
-              href="/terms"
-              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-            >
-              Terms
-            </Link>
-            <Link
-              href="/contact"
-              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-            >
-              Contact
-            </Link>
-            <Link
-              href="https://x.com/deepmishra1283"
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
-              aria-label="Follow Signalze updates on X"
-            >
-              <XLogo className="h-3.5 w-3.5" />
-              Follow on X for updates
-            </Link>
+            {/* Product Links */}
+            <div className="flex flex-col gap-3">
+              <h3 className="text-sm font-semibold text-foreground">Product</h3>
+              <Link href="/#features" className="text-sm text-muted-foreground transition-colors hover:text-foreground">Features</Link>
+              <Link href="/pricing" className="text-sm text-muted-foreground transition-colors hover:text-foreground">Pricing</Link>
+              <Link href="/pilot-testing" className="text-sm text-muted-foreground transition-colors hover:text-foreground">Pilot testing</Link>
+            </div>
+
+            {/* Platform Links */}
+            <div className="flex flex-col gap-3">
+              <h3 className="text-sm font-semibold text-foreground">Use Cases</h3>
+              <Link href="/hacker-news-monitoring" className="text-sm text-muted-foreground transition-colors hover:text-foreground">Hacker News monitoring</Link>
+              <Link href="/devto-monitoring" className="text-sm text-muted-foreground transition-colors hover:text-foreground">Dev.to monitoring</Link>
+              <Link href="/github-discussions-monitoring" className="text-sm text-muted-foreground transition-colors hover:text-foreground">GitHub monitoring</Link>
+            </div>
+
+            {/* Company Links */}
+            <div className="flex flex-col gap-3">
+              <h3 className="text-sm font-semibold text-foreground">Company</h3>
+              <Link href="/contact" className="text-sm text-muted-foreground transition-colors hover:text-foreground">Contact</Link>
+              <Link href="/privacy" className="text-sm text-muted-foreground transition-colors hover:text-foreground">Privacy policy</Link>
+              <Link href="/terms" className="text-sm text-muted-foreground transition-colors hover:text-foreground">Terms of service</Link>
+            </div>
           </div>
-          <p className="text-xs text-muted-foreground">
-            &copy; {new Date().getFullYear()} Signalze. All rights reserved.
-          </p>
+          
+          <div className="mt-16 flex flex-col items-center justify-between gap-4 border-t border-border/40 pt-8 sm:flex-row">
+            <p className="text-xs text-muted-foreground">
+              &copy; {new Date().getFullYear()} Signalze. All rights reserved.
+            </p>
+          </div>
         </Reveal>
       </footer>
     </>
