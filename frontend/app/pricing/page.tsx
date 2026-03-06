@@ -133,10 +133,10 @@ function PricingContent() {
           <h1 className="mt-2 font-serif text-3xl text-foreground sm:text-5xl text-balance">
             {manageMode ? "Choose a different plan" : "Start your 2-day free trial"}
           </h1>
-          <p className="mt-4 max-w-xl text-base text-muted-foreground">
+          <p className="mt-4 max-w-xl text-base text-muted-foreground text-balance mx-auto">
             {manageMode
               ? "Switch plans anytime. Your selection will be applied after checkout confirmation."
-              : "Pick a plan and start tracking mentions across Hacker News, Dev.to, and GitHub Discussions."}
+              : "Pick a plan and start tracking mentions across Hacker News, Dev.to, and GitHub Discussions. No credit card required—you won't be charged for the 2-day trial."}
           </p>
         </div>
 
