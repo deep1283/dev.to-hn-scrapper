@@ -180,7 +180,7 @@ export default function OnboardingPage() {
               }}
               disabled={termLimitReached}
               placeholder={termLimitReached ? "Keyword limit reached" : "e.g. signalze, social listening, ai"}
-              className="h-10 w-full rounded-xl border border-input bg-background px-4 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-accent/40 disabled:opacity-50"
+              className="h-10 w-full rounded-xl border border-input bg-background px-4 text-base text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-accent/40 disabled:opacity-50 md:text-sm"
             />
             <button
               onClick={addTerm}

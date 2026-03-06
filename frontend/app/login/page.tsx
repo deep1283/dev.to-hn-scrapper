@@ -270,7 +270,7 @@ function LoginForm() {
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 disabled={isSubmitting || isGoogleRedirecting || isPasswordSubmitting}
-                className="h-11 w-full rounded-xl border border-input bg-background px-4 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-accent/40"
+                className="h-11 w-full rounded-xl border border-input bg-background px-4 text-base text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-accent/40 md:text-sm"
                 placeholder="you@company.com"
               />
             </label>
@@ -306,7 +306,7 @@ function LoginForm() {
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 disabled={isPasswordSubmitting || isSubmitting || isGoogleRedirecting}
-                className="h-11 w-full rounded-xl border border-input bg-background px-4 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-accent/40"
+                className="h-11 w-full rounded-xl border border-input bg-background px-4 text-base text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-accent/40 md:text-sm"
                 placeholder="Enter your password"
               />
             </label>

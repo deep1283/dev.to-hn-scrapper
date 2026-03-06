@@ -33,7 +33,7 @@ function PricingFeature({ children }: { children: React.ReactNode }) {
 
 export function PricingSection() {
   return (
-    <section id="pricing" className="px-6 py-20 md:py-32">
+    <section id="pricing" className="px-4 py-16 sm:px-6 sm:py-20 md:py-32">
       <Reveal className="mx-auto max-w-5xl">
         <div className="flex flex-col items-center gap-12">
           <div className="text-center">
@@ -47,7 +47,7 @@ export function PricingSection() {
             </p>
           </div>
 
-          <div className="grid w-full max-w-3xl gap-6 sm:grid-cols-2">
+          <div className="grid w-full max-w-3xl gap-5 sm:grid-cols-2 sm:gap-6">
             {PLAN_ORDER.map((planId) => {
               const plan = PLAN_CONFIG[planId]
               const isPopular = planId === "growth_15"

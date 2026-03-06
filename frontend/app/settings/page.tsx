@@ -484,7 +484,7 @@ export default function SettingsPage() {
 
                   {slackWebhookHint ? (
                     <p className="mt-3 text-xs text-muted-foreground">
-                      Current webhook: <span className="font-medium text-foreground">{slackWebhookHint}</span>
+                      Current webhook: <span className="break-all font-medium text-foreground">{slackWebhookHint}</span>
                     </p>
                   ) : null}
 
@@ -499,7 +499,7 @@ export default function SettingsPage() {
                         }
                       }}
                       placeholder="https://hooks.slack.com/services/..."
-                      className="h-10 w-full rounded-xl border border-input bg-background px-4 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-accent/40"
+                      className="h-10 w-full rounded-xl border border-input bg-background px-4 text-base text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-accent/40 md:text-sm"
                     />
                     <button
                       onClick={() => void connectSlack()}
@@ -567,7 +567,7 @@ export default function SettingsPage() {
                   }}
                   disabled={keywordLimitReached}
                   placeholder={keywordLimitReached ? "Keyword limit reached" : "e.g. social listening"}
-                  className="h-10 w-full rounded-xl border border-input bg-background px-4 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-accent/40 disabled:opacity-50"
+                  className="h-10 w-full rounded-xl border border-input bg-background px-4 text-base text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-accent/40 disabled:opacity-50 md:text-sm"
                 />
                 <button
                   onClick={() => void addKeyword()}

@@ -3,19 +3,19 @@ import { Reveal } from "@/components/landing/reveal"
 
 export function Platforms() {
   return (
-    <section className="px-6 py-20 md:py-32">
+    <section className="px-4 py-16 sm:px-6 sm:py-20 md:py-32">
       <div className="mx-auto max-w-6xl text-center">
         <Reveal>
           <p className="font-handwriting text-lg text-primary">
             Monitor where it matters
           </p>
-          <h2 className="mx-auto mt-3 max-w-lg font-serif text-4xl leading-tight text-foreground md:text-5xl text-balance">
+          <h2 className="mx-auto mt-3 max-w-lg font-serif text-3xl leading-tight text-foreground md:text-5xl text-balance">
             Track mentions where your audience lives
           </h2>
         </Reveal>
 
         {/* Floating orbital icons */}
-        <Reveal className="relative mx-auto mt-16 flex h-[320px] max-w-[400px] items-center justify-center md:h-[400px] md:max-w-[500px]" delay={0.05}>
+        <Reveal className="relative mx-auto mt-12 flex h-[300px] max-w-[360px] items-center justify-center sm:mt-16 sm:h-[320px] sm:max-w-[400px] md:h-[400px] md:max-w-[500px]" delay={0.05}>
           {/* Radial gradient background */}
           <div className="absolute inset-0 rounded-full" style={{ background: "radial-gradient(circle, hsl(72 73% 58% / 0.2), hsl(72 73% 58% / 0.05), transparent)" }} />
           <div className="absolute h-64 w-64 rounded-full bg-accent/15 blur-3xl md:h-80 md:w-80" />
@@ -74,7 +74,7 @@ export function Platforms() {
         </Reveal>
 
         {/* Bottom card */}
-        <Reveal className="mx-auto mt-16 max-w-md rounded-2xl border border-border/60 bg-card p-8 shadow-sm" delay={0.08}>
+        <Reveal className="mx-auto mt-12 max-w-md rounded-2xl border border-border/60 bg-card p-6 shadow-sm sm:mt-16 sm:p-8" delay={0.08}>
           <p className="font-serif text-lg leading-snug text-card-foreground text-balance">
             Stay ahead of every conversation about your brand based on{" "}
             <span className="font-sans font-bold">real-time data</span> and{" "}

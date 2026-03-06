@@ -36,18 +36,18 @@ const useCases = [
 
 export function UseCases() {
   return (
-    <section id="use-cases" className="px-6 py-20 md:py-32">
+    <section id="use-cases" className="px-4 py-16 sm:px-6 sm:py-20 md:py-32">
       <div className="mx-auto max-w-6xl">
         <Reveal>
           <p className="text-center font-handwriting text-lg text-primary">
             Use cases
           </p>
-          <h2 className="mx-auto mt-3 max-w-lg text-center font-serif text-4xl leading-tight text-foreground md:text-5xl text-balance">
+          <h2 className="mx-auto mt-3 max-w-lg text-center font-serif text-3xl leading-tight text-foreground md:text-5xl text-balance">
             Tracking that works for your world
           </h2>
         </Reveal>
 
-        <div className="mt-20 flex flex-col gap-24">
+        <div className="mt-12 flex flex-col gap-16 sm:mt-20 sm:gap-24">
           {useCases.map((useCase, index) => (
             <Reveal
               key={useCase.title}

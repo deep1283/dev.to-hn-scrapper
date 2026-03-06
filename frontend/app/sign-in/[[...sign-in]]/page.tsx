@@ -401,7 +401,7 @@ export default function SignInPage() {
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   disabled={!isLoaded || isGoogleRedirecting || isMagicLinkSending || isResettingSession}
-                  className="h-11 w-full rounded-xl border border-input bg-background px-4 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-accent/40"
+                  className="h-11 w-full rounded-xl border border-input bg-background px-4 text-base text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-accent/40 md:text-sm"
                   placeholder="you@company.com"
                 />
               </label>

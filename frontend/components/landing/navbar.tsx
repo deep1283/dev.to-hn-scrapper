@@ -24,7 +24,7 @@ export function Navbar() {
       animate={reduceMotion ? undefined : { opacity: 1, y: 0 }}
       transition={reduceMotion ? undefined : { duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
     >
-      <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
+      <nav className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6 sm:py-5">
         <Link href="/" className="inline-flex items-center gap-3" aria-label="Signalze home">
           <Image
             src="/logo.png"
@@ -34,7 +34,7 @@ export function Navbar() {
             className="h-10 w-10 rounded-md object-cover"
             priority
           />
-          <span className="font-serif text-xl font-bold tracking-tight text-foreground sm:text-2xl">signalze</span>
+          <span className="font-serif text-lg font-bold tracking-tight text-foreground sm:text-2xl">signalze</span>
         </Link>
 
         <div className="hidden items-center gap-8 md:flex">
@@ -61,7 +61,7 @@ export function Navbar() {
       <AnimatePresence initial={false}>
         {mobileOpen && (
           <motion.div
-            className="border-t border-border/40 bg-background px-6 pb-6 md:hidden"
+            className="border-t border-border/40 bg-background px-4 pb-6 sm:px-6 md:hidden"
             initial={reduceMotion ? undefined : { height: 0, opacity: 0 }}
             animate={reduceMotion ? undefined : { height: "auto", opacity: 1 }}
             exit={reduceMotion ? undefined : { height: 0, opacity: 0 }}

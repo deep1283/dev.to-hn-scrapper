@@ -481,12 +481,12 @@ export default function DashboardPage() {
             ))}
           </div>
 
-          <div className="mt-5 flex flex-wrap gap-2">
+          <div className="-mx-1 mt-5 flex gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
             {PLATFORM_FILTERS.map((platform) => (
               <button
                 key={platform}
                 onClick={() => setActivePlatform(platform)}
-                className={`rounded-full px-4 py-1.5 text-sm font-medium transition-all ${
+                className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition-all ${
                   activePlatform === platform
                     ? "border border-border/50 text-foreground"
                     : "text-muted-foreground hover:text-foreground"

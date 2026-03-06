@@ -9,12 +9,12 @@ const AUTH_ENTRY_PATH = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ? "/sign-i
 
 export function Hero() {
   return (
-    <section className="relative overflow-hidden px-5 pb-20 pt-16 sm:px-6 md:pb-32 md:pt-24">
+    <section className="relative overflow-hidden px-4 pb-16 pt-12 sm:px-6 sm:pb-20 sm:pt-16 md:pb-32 md:pt-24">
       <div className="mx-auto grid max-w-6xl items-center gap-12 md:grid-cols-2 md:gap-16">
         {/* Left — Copy */}
         <Reveal className="flex flex-col gap-7" delay={0.05}>
           <p className="font-handwriting text-lg text-primary">Brand monitoring that ships results</p>
-          <h1 className="font-serif text-4xl leading-[1.15] text-foreground sm:text-5xl md:text-6xl lg:text-[4.25rem]">
+          <h1 className="font-serif text-3xl leading-[1.15] text-foreground sm:text-5xl md:text-6xl lg:text-[4.25rem]">
             Never miss a conversation{" "}
             <span className="squiggly-underline">that matters</span>
           </h1>

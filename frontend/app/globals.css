@@ -93,6 +93,15 @@
   }
 }
 
+/* Prevent iOS Safari auto-zoom on smaller form text in custom inputs */
+@media (max-width: 767px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
 /* Handwriting accent utilities */
 .font-handwriting {
   font-family: var(--font-handwriting);

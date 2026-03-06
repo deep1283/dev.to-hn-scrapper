@@ -17,9 +17,9 @@ export function CTAFooter() {
   return (
     <>
       {/* CTA Section */}
-      <section className="px-6 py-20 md:py-32">
+      <section className="px-4 py-16 sm:px-6 sm:py-20 md:py-32">
         <Reveal className="mx-auto max-w-6xl">
-          <div className="relative overflow-hidden rounded-3xl bg-card border border-border/60 px-8 py-16 text-center shadow-sm md:px-16">
+          <div className="relative overflow-hidden rounded-3xl border border-border/60 bg-card px-5 py-12 text-center shadow-sm sm:px-8 sm:py-16 md:px-16">
             {/* Decorative accent */}
             <div className="pointer-events-none absolute -left-20 -top-20 h-40 w-40 rounded-full bg-accent/20 blur-3xl" />
             <div className="pointer-events-none absolute -bottom-20 -right-20 h-40 w-40 rounded-full bg-accent/15 blur-3xl" />
@@ -27,7 +27,7 @@ export function CTAFooter() {
             <p className="font-handwriting text-lg text-primary">
               Ready to get started?
             </p>
-            <h2 className="mt-3 font-serif text-4xl text-foreground md:text-5xl text-balance">
+            <h2 className="mt-3 font-serif text-3xl text-foreground md:text-5xl text-balance">
               Start tracking your brand today
             </h2>
             <p className="mx-auto mt-4 max-w-md text-muted-foreground">
@@ -51,7 +51,7 @@ export function CTAFooter() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-border/40 px-6 py-10">
+      <footer className="border-t border-border/40 px-4 py-10 sm:px-6">
         <Reveal className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 md:flex-row">
           <Link
             href="/"
