@@ -111,7 +111,111 @@ function toIso(value: string | null | undefined): string {
   return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString()
 }
 
-function limitMentionsPerPlatform(mentions: Mention[], platforms: ActivePlatform[], perPlatformLimit: number): Mention[] {
+function normalizedTermKey(value: string): string {
+  return normalizeText(value).toLowerCase()
+}
+
+function fairSelectMentionsForPlatform(mentions: Mention[], limit: number): Mention[] {
+  if (mentions.length <= limit) {
+    return mentions
+  }
+
+  const keywordCandidates = new Map<string, number[]>()
+  const keywordCoverage = new Map<string, number>()
+
+  mentions.forEach((mention, index) => {
+    for (const term of mention.matchedTerms) {
+      const key = normalizedTermKey(term)
+      if (!key) {
+        continue
+      }
+      const candidates = keywordCandidates.get(key)
+      if (candidates) {
+        candidates.push(index)
+      } else {
+        keywordCandidates.set(key, [index])
+      }
+      if (!keywordCoverage.has(key)) {
+        keywordCoverage.set(key, 0)
+      }
+    }
+  })
+
+  if (!keywordCandidates.size) {
+    return mentions.slice(0, limit)
+  }
+
+  const selectedIndexes = new Set<number>()
+  const selected: Mention[] = []
+  const candidatePointers = new Map<string, number>()
+
+  while (selected.length < limit) {
+    let chosenKeyword: string | null = null
+    let chosenIndex = -1
+    let chosenCoverage = Number.POSITIVE_INFINITY
+    let chosenPublishedAt = Number.NEGATIVE_INFINITY
+
+    for (const [keyword, candidateIndexes] of keywordCandidates.entries()) {
+      let pointer = candidatePointers.get(keyword) ?? 0
+      while (pointer < candidateIndexes.length && selectedIndexes.has(candidateIndexes[pointer])) {
+        pointer += 1
+      }
+      candidatePointers.set(keyword, pointer)
+
+      if (pointer >= candidateIndexes.length) {
+        continue
+      }
+
+      const mentionIndex = candidateIndexes[pointer]
+      const coverage = keywordCoverage.get(keyword) ?? 0
+      const publishedAt = new Date(mentions[mentionIndex].publishedAt).getTime()
+
+      const isBetterChoice =
+        coverage < chosenCoverage ||
+        (coverage === chosenCoverage && publishedAt > chosenPublishedAt) ||
+        (coverage === chosenCoverage && publishedAt === chosenPublishedAt && keyword < (chosenKeyword ?? ""))
+
+      if (isBetterChoice) {
+        chosenKeyword = keyword
+        chosenIndex = mentionIndex
+        chosenCoverage = coverage
+        chosenPublishedAt = publishedAt
+      }
+    }
+
+    if (chosenKeyword === null || chosenIndex < 0) {
+      break
+    }
+
+    selectedIndexes.add(chosenIndex)
+    const mention = mentions[chosenIndex]
+    selected.push(mention)
+
+    for (const term of mention.matchedTerms) {
+      const key = normalizedTermKey(term)
+      if (!key || !keywordCoverage.has(key)) {
+        continue
+      }
+      keywordCoverage.set(key, (keywordCoverage.get(key) ?? 0) + 1)
+    }
+  }
+
+  if (selected.length < limit) {
+    for (const [mentionIndex, mention] of mentions.entries()) {
+      if (selectedIndexes.has(mentionIndex)) {
+        continue
+      }
+      selected.push(mention)
+      if (selected.length >= limit) {
+        break
+      }
+    }
+  }
+
+  return selected
+}
+
+function fairLimitMentionsPerPlatform(mentions: Mention[], platforms: ActivePlatform[], perPlatformLimit: number): Mention[] {
   const byPlatform = new Map<ActivePlatform, Mention[]>()
   for (const platform of platforms) {
     byPlatform.set(platform, [])
@@ -127,7 +231,7 @@ function limitMentionsPerPlatform(mentions: Mention[], platforms: ActivePlatform
   const selected: Mention[] = []
   for (const platform of platforms) {
     const bucket = byPlatform.get(platform) ?? []
-    selected.push(...bucket.slice(0, perPlatformLimit))
+    selected.push(...fairSelectMentionsForPlatform(bucket, perPlatformLimit))
   }
 
   selected.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
@@ -222,7 +326,7 @@ export async function POST(request: NextRequest) {
 
     const mentions = Array.from(merged.values())
       .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
-    const independentMentions = limitMentionsPerPlatform(mentions, platforms, perPlatformLimit)
+    const independentMentions = fairLimitMentionsPerPlatform(mentions, platforms, perPlatformLimit)
     const latestMatchedAt = latestMatchedIso(rows)
 
     const response = NextResponse.json({
