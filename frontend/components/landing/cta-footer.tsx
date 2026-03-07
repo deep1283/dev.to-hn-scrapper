@@ -38,7 +38,7 @@ export function CTAFooter() {
               href={AUTH_ENTRY_PATH}
               className="mt-8 inline-flex items-center gap-2 rounded-full bg-accent px-8 py-3.5 text-sm font-semibold text-accent-foreground transition-all hover:brightness-95 active:scale-[0.98]"
             >
-              Start 2-day trial <ArrowRight className="h-4 w-4" />
+              Start 5-day trial <ArrowRight className="h-4 w-4" />
             </Link>
             <p className="mt-4 text-sm text-muted-foreground">
               Need app pilot testing?{" "}

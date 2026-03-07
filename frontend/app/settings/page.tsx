@@ -460,7 +460,7 @@ export default function SettingsPage() {
               </div>
 
               <p className="mt-4 text-sm text-muted-foreground">
-                Billing: <span className="font-medium text-foreground">{billing === "trial" ? "2-day free trial" : "Paid"}</span>
+                Billing: <span className="font-medium text-foreground">{billing === "trial" ? "Free trial" : "Paid"}</span>
               </p>
               {billing === "trial" && trialEndsAt ? (
                 <p className="text-sm text-muted-foreground">

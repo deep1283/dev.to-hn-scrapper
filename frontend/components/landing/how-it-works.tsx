@@ -39,7 +39,7 @@ export function HowItWorks() {
             Get started now <ArrowRight className="h-4 w-4" />
           </Link>
           <p className="font-handwriting text-base text-muted-foreground">
-            ↓ it&apos;s that easy — 2-day free trial on any plan
+            ↓ it&apos;s that easy - 5-day free trial on any plan
           </p>
         </Reveal>
       </div>

@@ -131,12 +131,12 @@ function PricingContent() {
           </Link>
           <p className="mt-6 font-handwriting text-lg text-primary">{manageMode ? "Manage plan" : "Choose your plan"}</p>
           <h1 className="mt-2 font-serif text-3xl text-foreground sm:text-5xl text-balance">
-            {manageMode ? "Choose a different plan" : "Start your 2-day free trial"}
+            {manageMode ? "Choose a different plan" : `Start your ${PLAN_CONFIG.starter_9.trialDays}-day free trial`}
           </h1>
           <p className="mt-4 max-w-xl text-base text-muted-foreground text-balance mx-auto">
             {manageMode
               ? "Switch plans anytime. Your selection will be applied after checkout confirmation."
-              : "Pick a plan and start tracking mentions across Hacker News, Dev.to, and GitHub Discussions. No credit card required—you won't be charged for the 2-day trial."}
+              : `Pick a plan and start tracking mentions across Hacker News, Dev.to, and GitHub Discussions. No credit card required, and you won't be charged for the ${PLAN_CONFIG.starter_9.trialDays}-day trial.`}
           </p>
         </div>
 
@@ -202,7 +202,7 @@ function PricingContent() {
 
                 <ul className="flex flex-col gap-2.5 text-sm text-foreground">
                   <PricingFeature>Up to {plan.maxKeywords} keywords</PricingFeature>
-                  <PricingFeature>2-day free trial</PricingFeature>
+                  <PricingFeature>{`${plan.trialDays}-day free trial`}</PricingFeature>
                   {SOURCES.map((s) => (
                     <PricingFeature key={s}>{s}</PricingFeature>
                   ))}
@@ -248,7 +248,7 @@ function PricingContent() {
                         : "border border-border text-foreground hover:bg-secondary"
                     }`}
                   >
-                    {isStartingTrial === planId ? "Starting trial..." : "Start 2-day free trial"}
+                    {isStartingTrial === planId ? "Starting trial..." : `Start ${plan.trialDays}-day free trial`}
                   </button>
                 )}
               </article>

@@ -43,7 +43,7 @@ export function PricingSection() {
             </h2>
             <p className="mt-4 max-w-xl mx-auto text-base text-muted-foreground">
               Track mentions for your keywords across Hacker News, Dev.to, and
-              GitHub Discussions. Start with a 2-day free trial.
+              GitHub Discussions. Start with a 5-day free trial.
             </p>
           </div>
 
@@ -80,7 +80,7 @@ export function PricingSection() {
 
                   <ul className="flex flex-col gap-2.5 text-sm text-foreground">
                     <PricingFeature>Up to {plan.maxKeywords} keywords</PricingFeature>
-                    <PricingFeature>2-day free trial</PricingFeature>
+                    <PricingFeature>5-day free trial</PricingFeature>
                     {SOURCES.map((s) => (
                       <PricingFeature key={s}>{s}</PricingFeature>
                     ))}
