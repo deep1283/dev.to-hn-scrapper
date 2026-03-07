@@ -166,8 +166,6 @@ export async function sendWelcomeEmailIfEligible(profile: Pick<ProfileRow, "id" 
     return
   }
 
-  const env = getEmailEnv()
-  const dashboardUrl = `${env?.appUrl ?? "https://www.signalze.com"}/dashboard`
   const subject = "Welcome to Signalze"
   const html = `
     <div style="font-family: Georgia, serif; color: #1f1f19; line-height: 1.6;">
@@ -178,9 +176,6 @@ export async function sendWelcomeEmailIfEligible(profile: Pick<ProfileRow, "id" 
       <p>
         Gmail: <a href="mailto:deepmishra1283@gmail.com" style="color:#1f1f19;">deepmishra1283@gmail.com</a><br />
         X: <a href="https://x.com/deepmishra1283" style="color:#1f1f19;">https://x.com/deepmishra1283</a>
-      </p>
-      <p style="margin-top: 24px;">
-        <a href="${dashboardUrl}" style="display:inline-block;padding:12px 18px;border-radius:999px;background:#1f1f19;color:#f7f4eb;text-decoration:none;">Open dashboard</a>
       </p>
       <p style="margin-top: 24px;">
         Talk soon,<br />
@@ -196,8 +191,6 @@ One thing I'd love to know: what are you hoping to track?
 For any query, bug report, or suggestion, feel free to contact me.
 Gmail: deepmishra1283@gmail.com
 X: https://x.com/deepmishra1283
-
-Open your dashboard: ${dashboardUrl}
 
 Talk soon,
 Deep
@@ -218,8 +211,6 @@ export async function sendPaymentGreetingEmail(payload: PaymentGreetingPayload) 
     return
   }
 
-  const env = getEmailEnv()
-  const dashboardUrl = `${env?.appUrl ?? "https://www.signalze.com"}/dashboard`
   const safePlan = escapeHtml(planLabel(payload.planTier))
   const subject = "Your Signalze payment is confirmed"
   const html = `
@@ -227,9 +218,6 @@ export async function sendPaymentGreetingEmail(payload: PaymentGreetingPayload) 
       <h1 style="font-size: 28px; margin-bottom: 16px;">Payment confirmed</h1>
       <p>Your Signalze ${safePlan} plan is active.</p>
       <p>You can continue tracking mentions and reviewing results in your dashboard.</p>
-      <p style="margin-top: 24px;">
-        <a href="${dashboardUrl}" style="display:inline-block;padding:12px 18px;border-radius:999px;background:#1f1f19;color:#f7f4eb;text-decoration:none;">Open dashboard</a>
-      </p>
       <p style="margin-top: 24px;">
         For any query, bug report, or suggestion, feel free to contact me.<br />
         Gmail: <a href="mailto:deepmishra1283@gmail.com" style="color:#1f1f19;">deepmishra1283@gmail.com</a><br />
@@ -245,8 +233,6 @@ export async function sendPaymentGreetingEmail(payload: PaymentGreetingPayload) 
   const text = `Payment confirmed.
 
 Your Signalze ${planLabel(payload.planTier)} plan is active.
-
-Open your dashboard: ${dashboardUrl}
 
 For any query, bug report, or suggestion, feel free to contact me.
 Gmail: deepmishra1283@gmail.com
