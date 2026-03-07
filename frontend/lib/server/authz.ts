@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server"
 import { auth as clerkAuth, clerkClient } from "@clerk/nextjs/server"
 
+import { sendWelcomeEmailIfEligible } from "@/lib/server/email"
 import { ensureActiveEntitlement } from "@/lib/server/validation"
 import { ensureProfile } from "@/lib/server/supabase"
 import { requireSession, type SessionResult } from "@/lib/server/session"
@@ -92,6 +93,9 @@ export async function requireAuth(request: NextRequest): Promise<AuthContext> {
   const clerkContext = await tryClerkAuth()
   if (clerkContext) {
     const profile = await ensureProfile(clerkContext.accessToken, clerkContext.userId, clerkContext.email)
+    await sendWelcomeEmailIfEligible(profile).catch((error) => {
+      console.warn("[email] Unable to send welcome email for Clerk auth.", error)
+    })
 
     return {
       sessionResult: null,
