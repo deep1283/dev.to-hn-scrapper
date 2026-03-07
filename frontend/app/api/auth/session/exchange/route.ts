@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server"
 
+import { sendWelcomeEmailIfEligible } from "@/lib/server/email"
 import { getSupabaseEnv } from "@/lib/server/env"
 import { ensureProfile, getAuthUser, type ServerSession } from "@/lib/server/supabase"
 import { badRequest, toErrorResponse, tooManyRequests } from "@/lib/server/errors"
@@ -109,6 +110,9 @@ export async function POST(request: NextRequest) {
 
     const user = await getAuthUser(accessToken)
     const profile = await ensureProfile(accessToken, user.id, user.email)
+    await sendWelcomeEmailIfEligible(profile).catch((error) => {
+      console.warn("[email] Unable to send welcome email after session exchange.", error)
+    })
     const session = toSession(
       {
         accessToken,

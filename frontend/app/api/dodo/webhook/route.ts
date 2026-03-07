@@ -2,6 +2,7 @@ import { createHash, createHmac, timingSafeEqual } from "crypto"
 
 import { NextRequest, NextResponse } from "next/server"
 
+import { sendPaymentGreetingEmail } from "@/lib/server/email"
 import { AppError, badRequest, toErrorResponse, tooManyRequests, unauthorized } from "@/lib/server/errors"
 import { getRequestIp } from "@/lib/server/request"
 import { takeRateLimit } from "@/lib/server/rate-limit"
@@ -585,6 +586,22 @@ export async function POST(request: NextRequest) {
     const nowIso = new Date().toISOString()
     const patch = buildProfilePatch(target.profile, payload, eventType, nowIso)
     await patchProfileByFilter(supabaseUrl, serviceRoleKey, target.filter, patch)
+    const nextPlanTier = (patch.plan_tier as ProfileSnapshot["plan_tier"] | undefined) ?? target.profile.plan_tier
+    const shouldSendPaymentGreeting =
+      patch.billing_mode === "paid" &&
+      (target.profile.billing_mode !== "paid" ||
+        nextPlanTier !== target.profile.plan_tier ||
+        Boolean(target.profile.pending_plan_tier))
+
+    if (shouldSendPaymentGreeting) {
+      await sendPaymentGreetingEmail({
+        email: target.profile.email ?? getEmail(payload),
+        planTier: nextPlanTier,
+        eventId,
+      }).catch((error) => {
+        console.warn("[email] Unable to send payment greeting from Dodo webhook.", error)
+      })
+    }
 
     return NextResponse.json({ ok: true })
   } catch (error) {

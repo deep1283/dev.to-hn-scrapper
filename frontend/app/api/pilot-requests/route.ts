@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 
+import { sendPilotRequestNotificationEmail } from "@/lib/server/email"
 import { badRequest, toErrorResponse, tooManyRequests } from "@/lib/server/errors"
 import { getRequestIp, parseJsonBody } from "@/lib/server/request"
 import { takeRateLimit } from "@/lib/server/rate-limit"
@@ -122,6 +123,17 @@ export async function POST(request: NextRequest) {
     if (!inserted) {
       throw new Error("Pilot request insert returned no row.")
     }
+
+    await sendPilotRequestNotificationEmail({
+      requestId: inserted.id,
+      createdAt: inserted.created_at,
+      name: payload.name,
+      email: payload.email,
+      appUrl: payload.app_url,
+      testingScope: payload.testing_scope,
+    }).catch((error) => {
+      console.warn("[email] Unable to send pilot request notification.", error)
+    })
 
     return NextResponse.json({
       ok: true,

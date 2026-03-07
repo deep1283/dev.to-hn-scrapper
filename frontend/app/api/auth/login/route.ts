@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server"
 
+import { sendWelcomeEmailIfEligible } from "@/lib/server/email"
 import { ensureProfile, signInWithPassword, signUpWithPassword } from "@/lib/server/supabase"
 import { tooManyRequests, toErrorResponse } from "@/lib/server/errors"
 import { createSessionResponse } from "@/lib/server/session"
@@ -30,6 +31,9 @@ export async function POST(request: NextRequest) {
 
     const session = mode === "signup" ? await signUpWithPassword(email, password) : await signInWithPassword(email, password)
     const profile = await ensureProfile(session.accessToken, session.user.id, session.user.email)
+    await sendWelcomeEmailIfEligible(profile).catch((error) => {
+      console.warn("[email] Unable to send welcome email after password auth.", error)
+    })
 
     const nextRoute = !profile.plan_selected_at
       ? "/pricing"

@@ -38,6 +38,7 @@ export type ProfileRow = {
   trial_started_at: string | null
   trial_ends_at: string | null
   onboarding_completed: boolean
+  created_at: string | null
 }
 
 export type KeywordRow = {
@@ -186,7 +187,7 @@ export async function getAuthUser(accessToken: string): Promise<{ id: string; em
 }
 
 const PROFILE_SELECT =
-  "id,email,clerk_user_id,plan_tier,pending_plan_tier,pending_plan_effective_at,billing_mode,plan_selected_at,trial_started_at,trial_ends_at,onboarding_completed"
+  "id,email,clerk_user_id,plan_tier,pending_plan_tier,pending_plan_effective_at,billing_mode,plan_selected_at,trial_started_at,trial_ends_at,onboarding_completed,created_at"
 
 function isUuid(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
@@ -216,7 +217,7 @@ async function getProfileById(accessToken: string, userId: string): Promise<Prof
     >(
       `/profiles?id=eq.${encodeURIComponent(
         userId,
-      )}&select=id,email,plan_tier,billing_mode,plan_selected_at,trial_started_at,trial_ends_at,onboarding_completed`,
+      )}&select=id,email,plan_tier,billing_mode,plan_selected_at,trial_started_at,trial_ends_at,onboarding_completed,created_at`,
       accessToken,
     )
     const legacy = legacyRows[0]
@@ -228,6 +229,7 @@ async function getProfileById(accessToken: string, userId: string): Promise<Prof
       clerk_user_id: null,
       pending_plan_tier: null,
       pending_plan_effective_at: null,
+      created_at: null,
     }
   }
 }
@@ -271,7 +273,7 @@ async function getProfileByClerkUserId(accessToken: string, clerkUserId: string)
     >(
       `/profiles?clerk_user_id=eq.${encodeURIComponent(
         clerkUserId,
-      )}&select=id,email,clerk_user_id,plan_tier,billing_mode,plan_selected_at,trial_started_at,trial_ends_at,onboarding_completed&limit=1`,
+      )}&select=id,email,clerk_user_id,plan_tier,billing_mode,plan_selected_at,trial_started_at,trial_ends_at,onboarding_completed,created_at&limit=1`,
       accessToken,
     )
     const legacy = legacyRows[0]
@@ -282,6 +284,7 @@ async function getProfileByClerkUserId(accessToken: string, clerkUserId: string)
       ...legacy,
       pending_plan_tier: null,
       pending_plan_effective_at: null,
+      created_at: null,
     }
   }
 }
@@ -316,7 +319,7 @@ async function getProfileByEmail(accessToken: string, email: string): Promise<Pr
     >(
       `/profiles?email=eq.${encodeURIComponent(
         normalized,
-      )}&select=id,email,clerk_user_id,plan_tier,billing_mode,plan_selected_at,trial_started_at,trial_ends_at,onboarding_completed&order=plan_selected_at.desc.nullslast,updated_at.desc,id.asc&limit=1`,
+      )}&select=id,email,clerk_user_id,plan_tier,billing_mode,plan_selected_at,trial_started_at,trial_ends_at,onboarding_completed,created_at&order=plan_selected_at.desc.nullslast,updated_at.desc,id.asc&limit=1`,
       accessToken,
     )
     const legacy = legacyRows[0]
@@ -327,6 +330,7 @@ async function getProfileByEmail(accessToken: string, email: string): Promise<Pr
       ...legacy,
       pending_plan_tier: null,
       pending_plan_effective_at: null,
+      created_at: null,
     }
   }
 }
