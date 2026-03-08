@@ -177,6 +177,7 @@ export default function DashboardPage() {
       }
       const response = await fetch(`/api/mentions/status?${searchParams.toString()}`, {
         method: "GET",
+        cache: "no-store",
         headers: {
           "Content-Type": "application/json",
         },

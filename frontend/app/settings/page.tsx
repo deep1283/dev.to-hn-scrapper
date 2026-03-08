@@ -214,6 +214,7 @@ export default function SettingsPage() {
   async function refreshSlackStatus() {
     const response = await fetch("/api/integrations/slack", {
       method: "GET",
+      cache: "no-store",
       credentials: "include",
       headers: {
         "Content-Type": "application/json",

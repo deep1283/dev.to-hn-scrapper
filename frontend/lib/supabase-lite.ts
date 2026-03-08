@@ -75,6 +75,7 @@ type OnboardingSetupPayload = {
 async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
     ...init,
+    cache: "no-store",
     headers: {
       "Content-Type": "application/json",
       ...(init?.headers ?? {}),
@@ -106,6 +107,7 @@ export function getStoredSession(): SessionData | null {
 export async function getValidSession(): Promise<SessionData | null> {
   const payload = await fetch("/api/auth/session", {
     method: "GET",
+    cache: "no-store",
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
