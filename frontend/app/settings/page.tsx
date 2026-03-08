@@ -665,6 +665,14 @@ export default function SettingsPage() {
                     <div className="mt-4 rounded-xl border border-border/40 px-4 py-3">
                       <p className="text-sm font-medium text-foreground">Start code</p>
                       <p className="mt-2 break-all text-sm text-muted-foreground">/start {telegramStartCode}</p>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        Paste that exact command into the Telegram bot to connect this chat.
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        If Telegram says the code is invalid or expired, click{" "}
+                        <span className="font-medium text-foreground">Refresh connect code</span> and send the new{" "}
+                        <span className="font-medium text-foreground">/start &lt;code&gt;</span>.
+                      </p>
                       {telegramLinkExpiresAt ? (
                         <p className="mt-2 text-xs text-muted-foreground">
                           Expires: <span className="font-medium text-foreground">{formatTime(telegramLinkExpiresAt)}</span>
