@@ -57,33 +57,73 @@ function hasServiceTelegramConfig(): boolean {
   return Boolean(process.env.TELEGRAM_BOT_TOKEN?.trim())
 }
 
+function isMissingPendingActionColumn(error: unknown): boolean {
+  return error instanceof Error && error.message.toLowerCase().includes("pending_action")
+}
+
 async function getSubscriptionByChatId(chatId: number): Promise<TelegramSubscriptionRow | null> {
-  const rows = await serviceRestRequest<TelegramSubscriptionRow[]>(
-    `/telegram_subscriptions?chat_id=eq.${encodeURIComponent(
-      String(chatId),
-    )}&select=user_id,chat_id,alerts_enabled,keyword_filter,platform_filter,pending_action,link_token,link_token_expires_at,connected_at,paused_at,last_alert_sent_at,last_delivered_match_at,last_error,last_error_at&limit=1`,
-  )
-  return rows[0] ?? null
+  const basePath = `/telegram_subscriptions?chat_id=eq.${encodeURIComponent(
+    String(chatId),
+  )}&select=user_id,chat_id,alerts_enabled,keyword_filter,platform_filter,link_token,link_token_expires_at,connected_at,paused_at,last_alert_sent_at,last_delivered_match_at,last_error,last_error_at&limit=1`
+
+  try {
+    const rows = await serviceRestRequest<TelegramSubscriptionRow[]>(
+      basePath.replace("platform_filter,", "platform_filter,pending_action,"),
+    )
+    return rows[0] ?? null
+  } catch (error) {
+    if (!isMissingPendingActionColumn(error)) {
+      throw error
+    }
+    const rows = await serviceRestRequest<Array<Omit<TelegramSubscriptionRow, "pending_action">>>(basePath)
+    return rows[0] ? { ...rows[0], pending_action: null } : null
+  }
 }
 
 async function getSubscriptionByLinkToken(token: string): Promise<TelegramSubscriptionRow | null> {
-  const rows = await serviceRestRequest<TelegramSubscriptionRow[]>(
-    `/telegram_subscriptions?link_token=eq.${encodeURIComponent(
-      token,
-    )}&select=user_id,chat_id,alerts_enabled,keyword_filter,platform_filter,pending_action,link_token,link_token_expires_at,connected_at,paused_at,last_alert_sent_at,last_delivered_match_at,last_error,last_error_at&limit=1`,
-  )
-  return rows[0] ?? null
+  const basePath = `/telegram_subscriptions?link_token=eq.${encodeURIComponent(
+    token,
+  )}&select=user_id,chat_id,alerts_enabled,keyword_filter,platform_filter,link_token,link_token_expires_at,connected_at,paused_at,last_alert_sent_at,last_delivered_match_at,last_error,last_error_at&limit=1`
+
+  try {
+    const rows = await serviceRestRequest<TelegramSubscriptionRow[]>(
+      basePath.replace("platform_filter,", "platform_filter,pending_action,"),
+    )
+    return rows[0] ?? null
+  } catch (error) {
+    if (!isMissingPendingActionColumn(error)) {
+      throw error
+    }
+    const rows = await serviceRestRequest<Array<Omit<TelegramSubscriptionRow, "pending_action">>>(basePath)
+    return rows[0] ? { ...rows[0], pending_action: null } : null
+  }
 }
 
 async function updateSubscription(userId: string, patch: Record<string, unknown>): Promise<TelegramSubscriptionRow | null> {
-  const rows = await serviceRestRequest<TelegramSubscriptionRow[]>(
-    `/telegram_subscriptions?user_id=eq.${encodeURIComponent(userId)}`,
-    {
-      method: "PATCH",
-      body: JSON.stringify(patch),
-    },
-  )
-  return rows[0] ?? null
+  const path = `/telegram_subscriptions?user_id=eq.${encodeURIComponent(userId)}`
+  try {
+    const rows = await serviceRestRequest<TelegramSubscriptionRow[]>(
+      path,
+      {
+        method: "PATCH",
+        body: JSON.stringify(patch),
+      },
+    )
+    return rows[0] ?? null
+  } catch (error) {
+    if (!isMissingPendingActionColumn(error)) {
+      throw error
+    }
+    const { pending_action: _ignored, ...fallbackPatch } = patch
+    const rows = await serviceRestRequest<Array<Omit<TelegramSubscriptionRow, "pending_action">>>(
+      path,
+      {
+        method: "PATCH",
+        body: JSON.stringify(fallbackPatch),
+      },
+    )
+    return rows[0] ? { ...rows[0], pending_action: null } : null
+  }
 }
 
 async function getProfile(userId: string): Promise<TelegramProfile | null> {
