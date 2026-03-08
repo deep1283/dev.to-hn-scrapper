@@ -351,6 +351,8 @@ async function reply(chatId: number, text: string) {
 }
 
 export async function POST(request: NextRequest) {
+  let chatId: number | null = null
+  let text: string | null = null
   try {
     if (!hasServiceTelegramConfig()) {
       return NextResponse.json({ ok: true })
@@ -366,8 +368,8 @@ export async function POST(request: NextRequest) {
 
     const update = (await request.json().catch(() => null)) as TelegramUpdate | null
     const message = update?.message
-    const chatId = message?.chat?.id
-    const text = message?.text?.trim()
+    chatId = message?.chat?.id ?? null
+    text = message?.text?.trim() ?? null
     if (!chatId || !text) {
       return NextResponse.json({ ok: true })
     }
@@ -545,6 +547,17 @@ export async function POST(request: NextRequest) {
     await reply(chatId, buildHelpText(subscription))
     return NextResponse.json({ ok: true })
   } catch (error) {
+    if (chatId) {
+      const normalizedText = text?.trim().toLowerCase() ?? ""
+      const fallbackMessage = normalizedText.startsWith("/start")
+        ? "I couldn’t complete that connection. Generate a fresh Telegram code in Signalze settings and send the new /start code again."
+        : "I couldn’t process that just now. Try again, or use /latest, /keyword, /platform, /pause, or /stop."
+      try {
+        await reply(chatId, fallbackMessage)
+      } catch (replyError) {
+        console.error("[api/integrations/telegram/webhook:fallback-reply]", replyError)
+      }
+    }
     return toErrorResponse("api/integrations/telegram/webhook", error, "Unable to process Telegram webhook.")
   }
 }
