@@ -99,7 +99,6 @@ export default function SettingsPage() {
   const [telegramKeywordFilter, setTelegramKeywordFilter] = useState<string | null>(null)
   const [telegramPlatformFilter, setTelegramPlatformFilter] = useState<string | null>(null)
   const [telegramBotUsername, setTelegramBotUsername] = useState<string | null>(null)
-  const [telegramBotLink, setTelegramBotLink] = useState<string | null>(null)
   const [telegramStartCode, setTelegramStartCode] = useState<string | null>(null)
   const [telegramLinkExpiresAt, setTelegramLinkExpiresAt] = useState<string | null>(null)
   const [telegramFeedback, setTelegramFeedback] = useState<string | null>(null)
@@ -331,10 +330,13 @@ export default function SettingsPage() {
       setTelegramKeywordFilter(payload.keywordFilter ?? null)
       setTelegramPlatformFilter(payload.platformFilter ?? null)
       setTelegramBotUsername(payload.botUsername ?? null)
-      setTelegramBotLink(payload.botLink ?? null)
       setTelegramStartCode(payload.startCode ?? null)
       setTelegramLinkExpiresAt(payload.linkExpiresAt ?? null)
       setTelegramFeedback(payload.message ?? "Telegram connection is ready.")
+
+      if (payload.botLink) {
+        window.location.assign(payload.botLink)
+      }
     } catch (telegramError) {
       setTelegramFeedback(telegramError instanceof Error ? telegramError.message : "Unable to prepare Telegram connection.")
     } finally {
@@ -366,7 +368,6 @@ export default function SettingsPage() {
       setTelegramPaused(Boolean(payload.paused))
       setTelegramKeywordFilter(payload.keywordFilter ?? null)
       setTelegramPlatformFilter(payload.platformFilter ?? null)
-      setTelegramBotLink(null)
       setTelegramStartCode(null)
       setTelegramLinkExpiresAt(null)
       setTelegramFeedback(payload.message ?? "Telegram disconnected.")
@@ -595,7 +596,13 @@ export default function SettingsPage() {
                       disabled={isTelegramSaving}
                       className="h-10 w-full rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
                     >
-                      {isTelegramSaving ? "Preparing..." : telegramConnected ? "Refresh connect code" : "Connect Telegram"}
+                      {isTelegramSaving
+                        ? telegramConnected
+                          ? "Refreshing token..."
+                          : "Creating token..."
+                        : telegramConnected
+                          ? "Refresh connect code"
+                          : "Connect Telegram"}
                     </button>
                     {telegramConnected ? (
                       <button
@@ -607,17 +614,6 @@ export default function SettingsPage() {
                       </button>
                     ) : null}
                   </div>
-
-                  {telegramBotLink ? (
-                    <a
-                      href={telegramBotLink}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-3 inline-flex h-10 items-center justify-center rounded-full border border-border/40 px-5 text-sm font-medium text-foreground transition-opacity hover:opacity-80"
-                    >
-                      Open Telegram bot
-                    </a>
-                  ) : null}
 
                   {telegramStartCode ? (
                     <div className="mt-4 rounded-xl border border-border/40 px-4 py-3">
