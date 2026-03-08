@@ -99,6 +99,7 @@ export default function SettingsPage() {
   const [telegramKeywordFilter, setTelegramKeywordFilter] = useState<string | null>(null)
   const [telegramPlatformFilter, setTelegramPlatformFilter] = useState<string | null>(null)
   const [telegramBotUsername, setTelegramBotUsername] = useState<string | null>(null)
+  const [telegramBotLink, setTelegramBotLink] = useState<string | null>(null)
   const [telegramStartCode, setTelegramStartCode] = useState<string | null>(null)
   const [telegramLinkExpiresAt, setTelegramLinkExpiresAt] = useState<string | null>(null)
   const [telegramFeedback, setTelegramFeedback] = useState<string | null>(null)
@@ -159,6 +160,7 @@ export default function SettingsPage() {
   const keywordLimitReached = activeKeywords.length >= planConfig.maxKeywords
   const canUseSlack = plan === "growth_15"
   const showBootstrapLoading = isLoading && !session && !error
+  const telegramStartCommand = telegramStartCode ? `/start ${telegramStartCode}` : null
 
   async function addKeyword() {
     if (!session || keywordLimitReached) {
@@ -331,6 +333,7 @@ export default function SettingsPage() {
       setTelegramKeywordFilter(payload.keywordFilter ?? null)
       setTelegramPlatformFilter(payload.platformFilter ?? null)
       setTelegramBotUsername(payload.botUsername ?? null)
+      setTelegramBotLink(payload.botLink ?? null)
       setTelegramStartCode(payload.startCode ?? null)
       setTelegramLinkExpiresAt(payload.linkExpiresAt ?? null)
       setTelegramFeedback(payload.message ?? "Telegram connection is ready.")
@@ -342,6 +345,19 @@ export default function SettingsPage() {
       setTelegramFeedback(telegramError instanceof Error ? telegramError.message : "Unable to prepare Telegram connection.")
     } finally {
       setIsTelegramSaving(false)
+    }
+  }
+
+  async function copyTelegramStartCommand() {
+    if (!telegramStartCommand) {
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(telegramStartCommand)
+      setTelegramFeedback("Copied the Telegram start command. Paste it into the bot chat.")
+    } catch {
+      setTelegramFeedback("Unable to copy automatically. Copy the start command manually and paste it into the bot chat.")
     }
   }
 
@@ -659,15 +675,34 @@ export default function SettingsPage() {
                   {telegramStartCode ? (
                     <div className="mt-4 rounded-xl border border-border/40 px-4 py-3">
                       <p className="text-sm font-medium text-foreground">Start code</p>
-                      <p className="mt-2 break-all text-sm text-muted-foreground">/start {telegramStartCode}</p>
+                      <p className="mt-2 break-all text-sm text-muted-foreground">{telegramStartCommand}</p>
                       <p className="mt-2 text-xs text-muted-foreground">
-                        Paste that exact command into the Telegram bot to connect this chat.
+                        If the automatic redirect does not open Telegram, use the button below and paste this command manually.
                       </p>
                       <p className="mt-1 text-xs text-muted-foreground">
                         If Telegram says the code is invalid or expired, click{" "}
                         <span className="font-medium text-foreground">Refresh connect code</span> and send the new{" "}
                         <span className="font-medium text-foreground">/start &lt;code&gt;</span>.
                       </p>
+                      <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                        {telegramBotLink ? (
+                          <a
+                            href={telegramBotLink}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex h-10 items-center justify-center rounded-full border border-border/40 px-4 text-sm font-medium text-foreground transition-opacity hover:opacity-80"
+                          >
+                            Open Telegram bot
+                          </a>
+                        ) : null}
+                        <button
+                          type="button"
+                          onClick={() => void copyTelegramStartCommand()}
+                          className="inline-flex h-10 items-center justify-center rounded-full border border-border/40 px-4 text-sm font-medium text-foreground transition-opacity hover:opacity-80"
+                        >
+                          Copy /start code
+                        </button>
+                      </div>
                       {telegramLinkExpiresAt ? (
                         <p className="mt-2 text-xs text-muted-foreground">
                           Expires: <span className="font-medium text-foreground">{formatTime(telegramLinkExpiresAt)}</span>
