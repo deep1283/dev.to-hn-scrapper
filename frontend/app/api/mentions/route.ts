@@ -412,6 +412,7 @@ export async function POST(request: NextRequest) {
       perPlatformLimit,
       activeKeywordKeys,
     )
+
     const latestMatchedAt = latestMatchedIso(rows)
 
     const response = NextResponse.json({
