@@ -54,6 +54,13 @@ type SettingsBootstrapPayload = {
   nextRoute: string
 }
 
+type DashboardBootstrapPayload = {
+  user: SessionData["user"]
+  profile: ProfileRow
+  keywords: KeywordRow[]
+  nextRoute: string
+}
+
 type OnboardingSetupPayload = {
   ok: boolean
   nextRoute: string
@@ -219,6 +226,12 @@ export async function getOnboardingBootstrap(): Promise<KeywordBootstrapPayload>
 
 export async function getSettingsBootstrap(): Promise<SettingsBootstrapPayload> {
   return apiRequest<SettingsBootstrapPayload>("/api/settings/bootstrap", {
+    method: "GET",
+  })
+}
+
+export async function getDashboardBootstrap(): Promise<DashboardBootstrapPayload> {
+  return apiRequest<DashboardBootstrapPayload>("/api/dashboard/bootstrap", {
     method: "GET",
   })
 }

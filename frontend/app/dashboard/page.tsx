@@ -6,7 +6,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import useSWR from "swr"
 
 import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton"
-import { isTrialExpired } from "@/lib/client/billing"
 import {
   ACTIVE_PLATFORMS,
   PLATFORM_FILTERS,
@@ -15,9 +14,7 @@ import {
   type PlatformFilter,
 } from "@/lib/platforms"
 import {
-  ensureProfile,
-  getValidSession,
-  listKeywords,
+  getDashboardBootstrap,
   type KeywordRow,
 } from "@/lib/supabase-lite"
 
@@ -212,22 +209,10 @@ export default function DashboardPage() {
   useEffect(() => {
     async function bootstrap() {
       try {
-        const validSession = await getValidSession()
-        if (!validSession) {
-          window.location.replace(AUTH_ENTRY_PATH)
-          return
-        }
+        const loadBootstrap = async () => getDashboardBootstrap()
+        let payload = await loadBootstrap()
 
-        const profile = await ensureProfile(validSession)
-        if (!profile?.plan_selected_at) {
-          window.location.replace("/pricing")
-          return
-        }
-
-        let trialExpired = isTrialExpired(profile.billing_mode, profile.trial_ends_at)
-
-        // After checkout, directly confirm billing status instead of waiting for webhook
-        if (trialExpired && typeof window !== "undefined" && new URLSearchParams(window.location.search).has("checkout")) {
+        if (payload.nextRoute === "/upgrade" && typeof window !== "undefined" && new URLSearchParams(window.location.search).has("checkout")) {
           try {
             const confirmRes = await fetch("/api/billing/confirm-checkout", {
               method: "POST",
@@ -235,29 +220,26 @@ export default function DashboardPage() {
               headers: { "Content-Type": "application/json" },
             })
             if (confirmRes.ok) {
-              const freshProfile = await ensureProfile(validSession)
-              trialExpired = isTrialExpired(freshProfile.billing_mode, freshProfile.trial_ends_at)
+              payload = await loadBootstrap()
             }
           } catch {
             // Continue with the stale check if confirmation fails
           }
         }
 
-        if (trialExpired) {
-          window.location.replace("/upgrade")
+        if (payload.nextRoute !== "/dashboard") {
+          window.location.replace(payload.nextRoute === "/login" ? AUTH_ENTRY_PATH : payload.nextRoute)
           return
         }
 
-        if (!profile.onboarding_completed) {
-          window.location.replace("/onboarding")
-          return
-        }
-
-        setProfileId(profile.id)
-        const keywords = await listKeywords(validSession)
-        setKeywordRows(keywords)
+        setProfileId(payload.profile.id)
+        setKeywordRows(payload.keywords)
       } catch (bootstrapError) {
         const message = bootstrapError instanceof Error ? bootstrapError.message : "Failed to load dashboard"
+        if (message.toLowerCase().includes("please log in")) {
+          window.location.replace(AUTH_ENTRY_PATH)
+          return
+        }
         if (message.toLowerCase().includes("trial has ended")) {
           window.location.replace("/upgrade")
           return
