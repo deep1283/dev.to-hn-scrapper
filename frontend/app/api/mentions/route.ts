@@ -10,7 +10,7 @@ import { withSessionCookie } from "@/lib/server/session"
 
 export const dynamic = "force-dynamic"
 const HISTORY_DAYS = 7
-const MAX_PER_PLATFORM_LIMIT = 100
+const MAX_PER_PLATFORM_LIMIT = 200
 const RATE_LIMITS = {
   burstPerUserIp: { limit: 8, windowMs: 10_000 },
   perUserMinute: { limit: 30, windowMs: 60_000 },
@@ -115,20 +115,55 @@ function normalizedTermKey(value: string): string {
   return normalizeText(value).toLowerCase()
 }
 
-function fairSelectMentionsForPlatform(mentions: Mention[], limit: number): Mention[] {
+function trackedKeywordKeysForMention(mention: Mention, trackedKeys: Set<string>): string[] {
+  const matches = new Set<string>()
+  for (const term of mention.matchedTerms) {
+    const key = normalizedTermKey(term)
+    if (key && trackedKeys.has(key)) {
+      matches.add(key)
+    }
+  }
+  return Array.from(matches)
+}
+
+function nextUnseenCandidateIndex(
+  candidateIndexes: number[],
+  selectedIndexes: Set<number>,
+  startPointer: number,
+): { mentionIndex: number | null; nextPointer: number } {
+  let pointer = startPointer
+  while (pointer < candidateIndexes.length) {
+    const mentionIndex = candidateIndexes[pointer]
+    pointer += 1
+    if (!selectedIndexes.has(mentionIndex)) {
+      return {
+        mentionIndex,
+        nextPointer: pointer,
+      }
+    }
+  }
+
+  return {
+    mentionIndex: null,
+    nextPointer: pointer,
+  }
+}
+
+function equalWeightSelectMentionsForPlatform(
+  mentions: Mention[],
+  limit: number,
+  activeKeywordKeys: string[],
+): Mention[] {
   if (mentions.length <= limit) {
     return mentions
   }
 
   const keywordCandidates = new Map<string, number[]>()
   const keywordCoverage = new Map<string, number>()
+  const trackedKeys = new Set(activeKeywordKeys)
 
   mentions.forEach((mention, index) => {
-    for (const term of mention.matchedTerms) {
-      const key = normalizedTermKey(term)
-      if (!key) {
-        continue
-      }
+    for (const key of trackedKeywordKeysForMention(mention, trackedKeys)) {
       const candidates = keywordCandidates.get(key)
       if (candidates) {
         candidates.push(index)
@@ -141,32 +176,69 @@ function fairSelectMentionsForPlatform(mentions: Mention[], limit: number): Ment
     }
   })
 
-  if (!keywordCandidates.size) {
+  const availableKeywordKeys = activeKeywordKeys.filter((key) => keywordCandidates.has(key))
+  if (!availableKeywordKeys.length) {
     return mentions.slice(0, limit)
   }
 
   const selectedIndexes = new Set<number>()
   const selected: Mention[] = []
   const candidatePointers = new Map<string, number>()
+  const baseQuota = Math.floor(limit / availableKeywordKeys.length)
 
+  // Pass 1: give each keyword an equal base share if data exists.
+  if (baseQuota > 0) {
+    let progressed = true
+    while (selected.length < limit && progressed) {
+      progressed = false
+
+      for (const keyword of availableKeywordKeys) {
+        if ((keywordCoverage.get(keyword) ?? 0) >= baseQuota) {
+          continue
+        }
+
+        const candidateIndexes = keywordCandidates.get(keyword) ?? []
+        const pointer = candidatePointers.get(keyword) ?? 0
+        const { mentionIndex, nextPointer } = nextUnseenCandidateIndex(candidateIndexes, selectedIndexes, pointer)
+        candidatePointers.set(keyword, nextPointer)
+
+        if (mentionIndex === null) {
+          continue
+        }
+
+        progressed = true
+        selectedIndexes.add(mentionIndex)
+        const mention = mentions[mentionIndex]
+        selected.push(mention)
+
+        for (const matchedKey of trackedKeywordKeysForMention(mention, trackedKeys)) {
+          keywordCoverage.set(matchedKey, (keywordCoverage.get(matchedKey) ?? 0) + 1)
+        }
+
+        if (selected.length >= limit) {
+          break
+        }
+      }
+    }
+  }
+
+  // Pass 2: continue balancing toward the least represented keyword.
   while (selected.length < limit) {
     let chosenKeyword: string | null = null
     let chosenIndex = -1
     let chosenCoverage = Number.POSITIVE_INFINITY
     let chosenPublishedAt = Number.NEGATIVE_INFINITY
 
-    for (const [keyword, candidateIndexes] of keywordCandidates.entries()) {
-      let pointer = candidatePointers.get(keyword) ?? 0
-      while (pointer < candidateIndexes.length && selectedIndexes.has(candidateIndexes[pointer])) {
-        pointer += 1
-      }
-      candidatePointers.set(keyword, pointer)
+    for (const keyword of availableKeywordKeys) {
+      const candidateIndexes = keywordCandidates.get(keyword) ?? []
+      const pointer = candidatePointers.get(keyword) ?? 0
+      const { mentionIndex, nextPointer } = nextUnseenCandidateIndex(candidateIndexes, selectedIndexes, pointer)
+      candidatePointers.set(keyword, nextPointer)
 
-      if (pointer >= candidateIndexes.length) {
+      if (mentionIndex === null) {
         continue
       }
 
-      const mentionIndex = candidateIndexes[pointer]
       const coverage = keywordCoverage.get(keyword) ?? 0
       const publishedAt = new Date(mentions[mentionIndex].publishedAt).getTime()
 
@@ -191,12 +263,8 @@ function fairSelectMentionsForPlatform(mentions: Mention[], limit: number): Ment
     const mention = mentions[chosenIndex]
     selected.push(mention)
 
-    for (const term of mention.matchedTerms) {
-      const key = normalizedTermKey(term)
-      if (!key || !keywordCoverage.has(key)) {
-        continue
-      }
-      keywordCoverage.set(key, (keywordCoverage.get(key) ?? 0) + 1)
+    for (const matchedKey of trackedKeywordKeysForMention(mention, trackedKeys)) {
+      keywordCoverage.set(matchedKey, (keywordCoverage.get(matchedKey) ?? 0) + 1)
     }
   }
 
@@ -215,7 +283,12 @@ function fairSelectMentionsForPlatform(mentions: Mention[], limit: number): Ment
   return selected
 }
 
-function fairLimitMentionsPerPlatform(mentions: Mention[], platforms: ActivePlatform[], perPlatformLimit: number): Mention[] {
+function fairLimitMentionsPerPlatform(
+  mentions: Mention[],
+  platforms: ActivePlatform[],
+  perPlatformLimit: number,
+  activeKeywordKeys: string[],
+): Mention[] {
   const byPlatform = new Map<ActivePlatform, Mention[]>()
   for (const platform of platforms) {
     byPlatform.set(platform, [])
@@ -231,7 +304,7 @@ function fairLimitMentionsPerPlatform(mentions: Mention[], platforms: ActivePlat
   const selected: Mention[] = []
   for (const platform of platforms) {
     const bucket = byPlatform.get(platform) ?? []
-    selected.push(...fairSelectMentionsForPlatform(bucket, perPlatformLimit))
+    selected.push(...equalWeightSelectMentionsForPlatform(bucket, perPlatformLimit, activeKeywordKeys))
   }
 
   selected.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
@@ -241,15 +314,15 @@ function fairLimitMentionsPerPlatform(mentions: Mention[], platforms: ActivePlat
 function candidateRowLimit(perPlatformLimit: number, activeKeywordCount: number): number {
   const keywordCount = Math.max(activeKeywordCount, 1)
 
-  // Fair weighting only works if the candidate pool is broad enough.
-  // Pull a much deeper pool when users track several keywords so dominant
-  // recent terms do not starve quieter keywords before selection runs.
+  // Equal-share selection only works if the candidate pool is broad enough.
+  // Pull a deeper pool when users track several keywords so quieter terms
+  // are present before the final balancing step.
   return Math.min(
     Math.max(
-      perPlatformLimit * 12,
-      keywordCount * 160,
+      perPlatformLimit * 18,
+      keywordCount * 300,
     ),
-    5000,
+    10000,
   )
 }
 
@@ -293,6 +366,9 @@ export async function POST(request: NextRequest) {
 
     const perPlatformLimit = Math.min(Math.max(Number(body.limit ?? 100), 10), MAX_PER_PLATFORM_LIMIT)
     const activeKeywords = await listKeywords(auth.accessToken, auth.userId, false)
+    const activeKeywordKeys = activeKeywords
+      .map((keyword) => normalizedTermKey(keyword.query))
+      .filter((keyword, index, array) => Boolean(keyword) && array.indexOf(keyword) === index)
     const cutoff = new Date()
     cutoff.setUTCHours(0, 0, 0, 0)
     cutoff.setUTCDate(cutoff.getUTCDate() - HISTORY_DAYS)
@@ -342,7 +418,12 @@ export async function POST(request: NextRequest) {
 
     const mentions = Array.from(merged.values())
       .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
-    const independentMentions = fairLimitMentionsPerPlatform(mentions, platforms, perPlatformLimit)
+    const independentMentions = fairLimitMentionsPerPlatform(
+      mentions,
+      platforms,
+      perPlatformLimit,
+      activeKeywordKeys,
+    )
     const latestMatchedAt = latestMatchedIso(rows)
 
     const response = NextResponse.json({

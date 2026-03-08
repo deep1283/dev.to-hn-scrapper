@@ -46,7 +46,7 @@ type MentionStatusResponse = {
 const HISTORY_DAYS = 7
 const STATUS_CHECK_INTERVAL_MS = 5 * 60_000
 const BOOTSTRAP_STATUS_CHECK_INTERVAL_MS = 15_000
-const PER_PLATFORM_DASHBOARD_LIMIT = 100
+const PER_PLATFORM_DASHBOARD_LIMIT = 200
 const MENTIONS_CACHE_TTL_MS = 45_000
 
 function formatTime(isoTime: string): string {
