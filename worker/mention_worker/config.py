@@ -31,6 +31,8 @@ class Settings:
     google_cse_id: str | None
     brave_api_key: str | None
     github_token: str | None
+    telegram_bot_token: str | None
+    telegram_alert_cooldown_minutes: int
     request_timeout_seconds: float
     source_keys: tuple[str, ...]
     source_enabled: dict[str, bool]
@@ -167,6 +169,11 @@ def load_settings() -> Settings:
         google_cse_id=os.getenv("GOOGLE_CSE_ID"),
         brave_api_key=os.getenv("BRAVE_API_KEY"),
         github_token=os.getenv("GITHUB_TOKEN"),
+        telegram_bot_token=os.getenv("TELEGRAM_BOT_TOKEN"),
+        telegram_alert_cooldown_minutes=max(
+            int(os.getenv("TELEGRAM_ALERT_COOLDOWN_MINUTES", "180")),
+            1,
+        ),
         request_timeout_seconds=float(os.getenv("REQUEST_TIMEOUT_SECONDS", "20")),
         source_keys=tuple(source.key for source in SOURCE_DEFINITIONS),
         source_enabled=source_enabled,

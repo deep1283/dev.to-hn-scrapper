@@ -51,6 +51,14 @@ type SettingsBootstrapPayload = {
     webhookHint?: string | null
     canUseSlack?: boolean
   }
+  telegram: {
+    configured?: boolean
+    connected?: boolean
+    alertsEnabled?: boolean
+    paused?: boolean
+    keywordFilter?: string | null
+    platformFilter?: string | null
+  }
   nextRoute: string
 }
 
