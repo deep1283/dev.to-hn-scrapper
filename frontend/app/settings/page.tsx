@@ -586,6 +586,9 @@ export default function SettingsPage() {
               <p className="mt-4 text-sm text-muted-foreground">
                 Billing: <span className="font-medium text-foreground">{billing === "trial" ? "Free trial" : "Paid"}</span>
               </p>
+              <p className="text-sm text-muted-foreground">
+                Account email: <span className="font-medium text-foreground">{session?.user.email ?? "Unavailable"}</span>
+              </p>
               {billing === "trial" && trialEndsAt ? (
                 <p className="text-sm text-muted-foreground">
                   Trial ends: <span className="font-medium text-foreground">{formatTime(trialEndsAt)}</span>
