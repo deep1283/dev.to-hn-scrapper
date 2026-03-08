@@ -36,6 +36,15 @@ function formatTime(isoTime: string): string {
   }).format(date)
 }
 
+function shouldOpenTelegramInNewTab(): boolean {
+  if (typeof navigator === "undefined") {
+    return false
+  }
+
+  const userAgent = navigator.userAgent.toLowerCase()
+  return !/android|iphone|ipad|ipod|mobile/i.test(userAgent)
+}
+
 type SlackStatusResponse = {
   connected?: boolean
   webhookHint?: string | null
@@ -339,7 +348,11 @@ export default function SettingsPage() {
       setTelegramFeedback(payload.message ?? "Telegram connection is ready.")
 
       if (payload.botLink) {
-        window.location.assign(payload.botLink)
+        if (shouldOpenTelegramInNewTab()) {
+          window.open(payload.botLink, "_blank", "noopener,noreferrer")
+        } else {
+          window.location.assign(payload.botLink)
+        }
       }
     } catch (telegramError) {
       setTelegramFeedback(telegramError instanceof Error ? telegramError.message : "Unable to prepare Telegram connection.")
