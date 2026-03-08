@@ -94,7 +94,7 @@ begin
     rm.published_at
   from ranked_matches rm
   where rm.keyword_rank <= v_per_keyword_limit
-  order by rm.matched_at desc, rm.published_at desc;
+  order by rm.keyword_rank asc, rm.matched_at desc, rm.published_at desc;
 end;
 $$;
 
