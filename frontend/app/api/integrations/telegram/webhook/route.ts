@@ -395,18 +395,25 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ ok: true })
       }
 
-      const linkedSubscription = await updateSubscription(subscription.user_id, {
-        chat_id: chatId,
-        connected_at: new Date().toISOString(),
-        alerts_enabled: true,
-        paused_at: null,
-        pending_action: null,
-        last_error: null,
-        last_error_at: null,
-        link_token: crypto.randomUUID(),
-        link_token_expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-      })
-      await reply(chatId, `Telegram is connected.\n\n${buildHelpText(linkedSubscription ?? subscription)}`)
+      try {
+        const linkedSubscription = await updateSubscription(subscription.user_id, {
+          chat_id: chatId,
+          connected_at: new Date().toISOString(),
+          alerts_enabled: true,
+          paused_at: null,
+          pending_action: null,
+          last_error: null,
+          last_error_at: null,
+          link_token: crypto.randomUUID(),
+          link_token_expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        })
+        await reply(chatId, `Telegram is connected.\n\n${buildHelpText(linkedSubscription ?? subscription)}`)
+      } catch {
+        await reply(
+          chatId,
+          "I couldn’t complete that connection yet. Generate a fresh Telegram code in Signalze settings, then paste the new /start code here and I’ll try again.",
+        )
+      }
       return NextResponse.json({ ok: true })
     }
 
