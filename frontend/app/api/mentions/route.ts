@@ -5,7 +5,7 @@ import { badRequest, toErrorResponse, tooManyRequests } from "@/lib/server/error
 import { ACTIVE_PLATFORMS, isActivePlatform, type ActivePlatform } from "@/lib/platforms"
 import { getRequestIp, parseJsonBody } from "@/lib/server/request"
 import { takeRateLimit } from "@/lib/server/rate-limit"
-import { restRequest } from "@/lib/server/supabase"
+import { listKeywords, restRequest } from "@/lib/server/supabase"
 import { withSessionCookie } from "@/lib/server/session"
 
 export const dynamic = "force-dynamic"
@@ -238,6 +238,21 @@ function fairLimitMentionsPerPlatform(mentions: Mention[], platforms: ActivePlat
   return selected
 }
 
+function candidateRowLimit(perPlatformLimit: number, activeKeywordCount: number): number {
+  const keywordCount = Math.max(activeKeywordCount, 1)
+
+  // Fair weighting only works if the candidate pool is broad enough.
+  // Pull a much deeper pool when users track several keywords so dominant
+  // recent terms do not starve quieter keywords before selection runs.
+  return Math.min(
+    Math.max(
+      perPlatformLimit * 12,
+      keywordCount * 160,
+    ),
+    5000,
+  )
+}
+
 async function enforceMentionsRateLimits(userId: string, ip: string): Promise<void> {
   const burst = await takeRateLimit(
     `mentions:read:burst:${userId}:${ip}`,
@@ -277,11 +292,12 @@ export async function POST(request: NextRequest) {
     const platforms = parsePlatforms(body.platforms, 10)
 
     const perPlatformLimit = Math.min(Math.max(Number(body.limit ?? 100), 10), MAX_PER_PLATFORM_LIMIT)
+    const activeKeywords = await listKeywords(auth.accessToken, auth.userId, false)
     const cutoff = new Date()
     cutoff.setUTCHours(0, 0, 0, 0)
     cutoff.setUTCDate(cutoff.getUTCDate() - HISTORY_DAYS)
     const timeFilter = `&mentions.published_at=gte.${encodeURIComponent(cutoff.toISOString())}`
-    const perPlatformRowLimit = Math.min(perPlatformLimit * 6, 1800)
+    const perPlatformRowLimit = candidateRowLimit(perPlatformLimit, activeKeywords.length)
     const rowsByPlatform = await Promise.all(
       platforms.map((platform) =>
         restRequest<MentionMatchRow[]>(
