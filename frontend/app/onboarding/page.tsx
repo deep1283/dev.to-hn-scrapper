@@ -4,12 +4,10 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useEffect, useMemo, useState } from "react"
 
-import { isTrialExpired } from "@/lib/client/billing"
+import { OnboardingSkeleton } from "@/components/onboarding/onboarding-skeleton"
 import { PLAN_CONFIG, type PlanId } from "@/lib/plans"
 import {
-  ensureProfile,
-  getValidSession,
-  listKeywords,
+  getOnboardingBootstrap,
   syncTrackingSetup,
   type BillingMode,
   type SessionData,
@@ -38,36 +36,26 @@ export default function OnboardingPage() {
   useEffect(() => {
     async function bootstrap() {
       try {
-        const validSession = await getValidSession()
-        if (!validSession) {
-          router.replace("/login")
+        const payload = await getOnboardingBootstrap()
+        const nextRoute = payload.nextRoute
+        if (nextRoute !== "/onboarding") {
+          router.replace(nextRoute)
           return
         }
+
+        const validSession = { user: payload.user }
+        const profile = payload.profile
         setSession(validSession)
-
-        const profile = await ensureProfile(validSession)
-        if (!profile?.plan_selected_at) {
-          router.replace("/pricing")
-          return
-        }
-
-        if (isTrialExpired(profile.billing_mode, profile.trial_ends_at)) {
-          router.replace("/upgrade")
-          return
-        }
 
         setPlanId(profile.plan_tier)
         setBilling(profile.billing_mode ?? "trial")
-
-        const existingKeywords = await listKeywords(validSession)
-        setTerms(existingKeywords.map((item) => item.query))
-
-        if (profile.onboarding_completed) {
-          router.replace("/dashboard")
-          return
-        }
+        setTerms(payload.keywords.map((item) => item.query))
       } catch (bootstrapError) {
         const message = bootstrapError instanceof Error ? bootstrapError.message : "Failed to load onboarding"
+        if (message.toLowerCase().includes("please log in")) {
+          router.replace("/login")
+          return
+        }
         if (message.toLowerCase().includes("trial has ended")) {
           router.replace("/upgrade")
           return
@@ -134,13 +122,7 @@ export default function OnboardingPage() {
   }
 
   if (isLoading) {
-    return (
-      <main className="min-h-screen bg-background px-4 py-8 sm:px-6 md:py-12">
-        <div className="mx-auto w-full max-w-3xl rounded-2xl border border-border/60 bg-card p-6 text-sm text-muted-foreground">
-          Loading onboarding...
-        </div>
-      </main>
-    )
+    return <OnboardingSkeleton />
   }
 
   return (

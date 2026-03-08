@@ -35,6 +35,13 @@ type SessionPayload = {
   nextRoute: string
 }
 
+type KeywordBootstrapPayload = {
+  user: SessionData["user"]
+  profile: ProfileRow
+  keywords: KeywordRow[]
+  nextRoute: string
+}
+
 type OnboardingSetupPayload = {
   ok: boolean
   nextRoute: string
@@ -189,6 +196,12 @@ export async function syncTrackingSetup(_session: SessionData, terms: string[]):
     body: JSON.stringify({
       terms,
     }),
+  })
+}
+
+export async function getOnboardingBootstrap(): Promise<KeywordBootstrapPayload> {
+  return apiRequest<KeywordBootstrapPayload>("/api/onboarding/bootstrap", {
+    method: "GET",
   })
 }
 
