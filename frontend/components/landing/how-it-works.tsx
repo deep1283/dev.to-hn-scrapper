@@ -1,7 +1,6 @@
 import Image from "next/image"
 import { ArrowRight } from "lucide-react"
 import Link from "next/link"
-import { Reveal } from "@/components/landing/reveal"
 
 const AUTH_ENTRY_PATH = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ? "/sign-in" : "/login"
 
@@ -9,7 +8,7 @@ export function HowItWorks() {
   return (
     <section id="how-it-works" className="px-6 py-20 md:py-32">
       <div className="mx-auto grid max-w-6xl items-center gap-12 md:grid-cols-2">
-        <Reveal className="order-2 md:order-1" y={24}>
+        <div className="order-2 md:order-1">
           <div className="relative mx-auto flex justify-center">
             <Image
               src="/images/sketch_service_mentions.png"
@@ -20,10 +19,9 @@ export function HowItWorks() {
               style={{ transform: "rotate(2deg)" }}
             />
           </div>
-        </Reveal>
+        </div>
 
-        {/* Text */}
-        <Reveal className="order-1 flex flex-col gap-6 md:order-2" delay={0.08}>
+        <div className="order-1 flex flex-col gap-6 md:order-2">
           <p className="font-handwriting text-lg text-primary">Quick setup</p>
           <h2 className="font-serif text-4xl leading-tight text-foreground md:text-5xl text-balance">
             Set up tracking in seconds
@@ -41,7 +39,7 @@ export function HowItWorks() {
           <p className="font-handwriting text-base text-muted-foreground">
             ↓ it&apos;s that easy - 5-day free trial on any plan
           </p>
-        </Reveal>
+        </div>
       </div>
     </section>
   )

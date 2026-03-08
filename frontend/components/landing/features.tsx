@@ -1,5 +1,4 @@
 import { Bell, BarChart3, Zap, Globe, Shield, Smartphone } from "lucide-react"
-import { Reveal, Stagger, StaggerItem } from "@/components/landing/reveal"
 
 const features = [
   {
@@ -50,18 +49,18 @@ export function Features() {
   return (
     <section id="features" className="px-4 py-16 sm:px-6 sm:py-20 md:py-32">
       <div className="mx-auto max-w-6xl">
-        <Reveal>
+        <div>
           <p className="text-center font-handwriting text-lg text-primary">
             Features
           </p>
           <h2 className="mx-auto mt-3 max-w-lg text-center font-serif text-3xl leading-tight text-foreground md:text-5xl text-balance">
             Simple, yet with all the tools you need
           </h2>
-        </Reveal>
+        </div>
 
-        <Stagger className="mt-16 grid gap-5 sm:grid-cols-2 lg:grid-cols-3" delayChildren={0.08}>
+        <div className="mt-16 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {features.map((feature) => (
-            <StaggerItem key={feature.title}>
+            <div key={feature.title}>
               <div className="group rounded-2xl bg-card p-6 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg">
                 <div
                   className={`flex h-11 w-11 items-center justify-center rounded-xl ${feature.color}`}
@@ -75,9 +74,9 @@ export function Features() {
                   {feature.description}
                 </p>
               </div>
-            </StaggerItem>
+            </div>
           ))}
-        </Stagger>
+        </div>
       </div>
     </section>
   )

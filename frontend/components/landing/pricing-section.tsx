@@ -1,5 +1,4 @@
 import Link from "next/link"
-import { Reveal } from "@/components/landing/reveal"
 import { PLAN_CONFIG, type PlanId } from "@/lib/plans"
 
 const AUTH_ENTRY_PATH = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ? "/sign-in" : "/login"
@@ -34,7 +33,7 @@ function PricingFeature({ children }: { children: React.ReactNode }) {
 export function PricingSection() {
   return (
     <section id="pricing" className="px-4 py-16 sm:px-6 sm:py-20 md:py-32">
-      <Reveal className="mx-auto max-w-5xl">
+      <div className="mx-auto max-w-5xl">
         <div className="flex flex-col items-center gap-12">
           <div className="text-center">
             <p className="font-handwriting text-lg text-primary">Pricing</p>
@@ -109,7 +108,7 @@ export function PricingSection() {
             Get started free
           </Link>
         </div>
-      </Reveal>
+      </div>
     </section>
   )
 }

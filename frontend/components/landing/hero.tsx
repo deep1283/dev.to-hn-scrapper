@@ -1,9 +1,6 @@
-"use client"
-
 import { ArrowRight } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
-import { Reveal } from "@/components/landing/reveal"
 
 const AUTH_ENTRY_PATH = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ? "/sign-in" : "/login"
 
@@ -12,7 +9,7 @@ export function Hero() {
     <section className="relative overflow-hidden px-4 pb-16 pt-12 sm:px-6 sm:pb-20 sm:pt-16 md:pb-32 md:pt-24">
       <div className="mx-auto grid max-w-6xl items-center gap-12 md:grid-cols-2 md:gap-16">
         {/* Left — Copy */}
-        <Reveal className="flex flex-col gap-7" delay={0.05}>
+        <div className="flex flex-col gap-7">
           <p className="font-handwriting text-lg text-primary">Your product is being talked about right now. Are you seeing it?</p>
           <h1 className="font-serif text-3xl leading-[1.15] text-foreground sm:text-5xl md:text-6xl lg:text-[4.25rem]">
             Never miss a conversation{" "}
@@ -36,14 +33,14 @@ export function Hero() {
               Log in
             </Link>
           </div>
-        </Reveal>
+        </div>
 
         {/* Right — Phone mockup */}
         <div className="relative flex items-center justify-center md:justify-end">
           {/* Subtle pedestal shadow */}
           <div className="absolute -bottom-6 left-1/2 h-8 w-3/4 -translate-x-1/2 rounded-[50%] bg-border/60 blur-xl" />
 
-          <Reveal className="relative z-10 flex w-full items-center justify-center lg:justify-end" delay={0.12}>
+          <div className="relative z-10 flex w-full items-center justify-center lg:justify-end">
             <div className="relative flex w-full max-w-[340px] items-center justify-center overflow-hidden sm:max-w-[380px]">
               <Image
                 src="/images/sketch_hero.png"
@@ -55,7 +52,7 @@ export function Hero() {
                 style={{ transform: "rotate(-2deg)" }}
               />
             </div>
-          </Reveal>
+          </div>
         </div>
       </div>
     </section>

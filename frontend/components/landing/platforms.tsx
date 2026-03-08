@@ -1,22 +1,21 @@
 import Image from "next/image"
 import Link from "next/link"
-import { Reveal } from "@/components/landing/reveal"
 
 export function Platforms() {
   return (
     <section className="px-4 py-16 sm:px-6 sm:py-20 md:py-32">
       <div className="mx-auto max-w-6xl text-center">
-        <Reveal>
+        <div>
           <p className="font-handwriting text-lg text-primary">
             Monitor where it matters
           </p>
           <h2 className="mx-auto mt-3 max-w-lg font-serif text-3xl leading-tight text-foreground md:text-5xl text-balance">
             Track mentions where your audience lives
           </h2>
-        </Reveal>
+        </div>
 
         {/* Floating orbital icons */}
-        <Reveal className="relative mx-auto mt-12 flex h-[300px] max-w-[360px] items-center justify-center sm:mt-16 sm:h-[320px] sm:max-w-[400px] md:h-[400px] md:max-w-[500px]" delay={0.05}>
+        <div className="relative mx-auto mt-12 flex h-[300px] max-w-[360px] items-center justify-center sm:mt-16 sm:h-[320px] sm:max-w-[400px] md:h-[400px] md:max-w-[500px]">
           {/* Radial gradient background */}
           <div className="absolute inset-0 rounded-full" style={{ background: "radial-gradient(circle, hsl(72 73% 58% / 0.2), hsl(72 73% 58% / 0.05), transparent)" }} />
           <div className="absolute h-64 w-64 rounded-full bg-accent/15 blur-3xl md:h-80 md:w-80" />
@@ -71,11 +70,10 @@ export function Platforms() {
               <path d="M12 .5C5.65.5.5 5.68.5 12.08c0 5.12 3.29 9.46 7.86 11 .57.1.78-.25.78-.56v-2.1c-3.2.7-3.88-1.56-3.88-1.56-.52-1.35-1.28-1.71-1.28-1.71-1.05-.73.08-.72.08-.72 1.16.08 1.77 1.2 1.77 1.2 1.03 1.78 2.7 1.27 3.36.97.1-.76.4-1.27.73-1.56-2.55-.29-5.24-1.29-5.24-5.74 0-1.27.45-2.3 1.18-3.12-.12-.29-.51-1.47.11-3.06 0 0 .97-.31 3.16 1.19a10.87 10.87 0 0 1 5.76 0c2.2-1.5 3.16-1.19 3.16-1.19.62 1.59.23 2.77.11 3.06.73.82 1.18 1.85 1.18 3.12 0 4.46-2.7 5.44-5.27 5.73.41.36.78 1.06.78 2.15v3.19c0 .31.2.66.79.55A11.6 11.6 0 0 0 23.5 12.08C23.5 5.68 18.35.5 12 .5z" />
             </svg>
           </PlatformBubble>
-
-        </Reveal>
+        </div>
 
         {/* Bottom card */}
-        <Reveal className="mx-auto mt-12 max-w-md rounded-2xl border border-border/60 bg-card p-6 shadow-sm sm:mt-16 sm:p-8" delay={0.08}>
+        <div className="mx-auto mt-12 max-w-md rounded-2xl border border-border/60 bg-card p-6 shadow-sm sm:mt-16 sm:p-8">
           <p className="font-serif text-lg leading-snug text-card-foreground text-balance">
             Stay ahead of every conversation about your brand based on{" "}
             <span className="font-sans font-bold">real-time data</span> and{" "}
@@ -101,7 +99,7 @@ export function Platforms() {
               GitHub Discussions monitoring
             </Link>
           </div>
-        </Reveal>
+        </div>
       </div>
     </section>
   )

@@ -1,7 +1,6 @@
 import { ArrowRight } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
-import { Reveal } from "@/components/landing/reveal"
 
 const AUTH_ENTRY_PATH = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ? "/sign-in" : "/login"
 
@@ -18,7 +17,7 @@ export function CTAFooter() {
     <>
       {/* CTA Section */}
       <section className="px-4 py-16 sm:px-6 sm:py-20 md:py-32">
-        <Reveal className="mx-auto max-w-6xl">
+        <div className="mx-auto max-w-6xl">
           <div className="relative overflow-hidden rounded-3xl border border-border/60 bg-card px-5 py-12 text-center shadow-sm sm:px-8 sm:py-16 md:px-16">
             {/* Decorative accent */}
             <div className="pointer-events-none absolute -left-20 -top-20 h-40 w-40 rounded-full bg-accent/20 blur-3xl" />
@@ -47,12 +46,12 @@ export function CTAFooter() {
               </Link>
             </p>
           </div>
-        </Reveal>
+        </div>
       </section>
 
       {/* Footer */}
       <footer className="border-t border-border/40 px-4 py-12 sm:px-6 md:py-16">
-        <Reveal className="mx-auto max-w-6xl">
+        <div className="mx-auto max-w-6xl">
           <div className="grid gap-12 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5">
             {/* Brand Column */}
             <div className="flex flex-col gap-4 lg:col-span-2">
@@ -116,7 +115,7 @@ export function CTAFooter() {
               &copy; {new Date().getFullYear()} Signalze. All rights reserved.
             </p>
           </div>
-        </Reveal>
+        </div>
       </footer>
     </>
   )

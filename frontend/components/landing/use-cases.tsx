@@ -1,5 +1,4 @@
 import Image from "next/image"
-import { Reveal } from "@/components/landing/reveal"
 
 const useCases = [
   {
@@ -38,22 +37,18 @@ export function UseCases() {
   return (
     <section id="use-cases" className="px-4 py-16 sm:px-6 sm:py-20 md:py-32">
       <div className="mx-auto max-w-6xl">
-        <Reveal>
+        <div>
           <p className="text-center font-handwriting text-lg text-primary">
             Use cases
           </p>
           <h2 className="mx-auto mt-3 max-w-lg text-center font-serif text-3xl leading-tight text-foreground md:text-5xl text-balance">
             Tracking that works for your world
           </h2>
-        </Reveal>
+        </div>
 
         <div className="mt-12 flex flex-col gap-16 sm:mt-20 sm:gap-24">
-          {useCases.map((useCase, index) => (
-            <Reveal
-              key={useCase.title}
-              delay={index * 0.06}
-              className="grid items-center gap-10 md:grid-cols-2"
-            >
+          {useCases.map((useCase) => (
+            <div key={useCase.title} className="grid items-center gap-10 md:grid-cols-2">
               <div
                 className={
                   useCase.reverse ? "order-2 md:order-1" : "order-2"
@@ -84,7 +79,7 @@ export function UseCases() {
                   }`}
                 />
               </div>
-            </Reveal>
+            </div>
           ))}
         </div>
       </div>
