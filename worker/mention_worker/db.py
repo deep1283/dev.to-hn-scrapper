@@ -9,7 +9,15 @@ import psycopg
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 
-from mention_worker.models import MentionCandidate, MentionRecord, PendingAlert, QueryCacheEntry, SourceTask
+from mention_worker.models import (
+    MatchedMention,
+    MentionCandidate,
+    MentionRecord,
+    PendingAlert,
+    QueryCacheEntry,
+    SourceTask,
+    TelegramSubscription,
+)
 
 
 class Database:
@@ -523,6 +531,178 @@ class Database:
             )
 
         return pending
+
+    @staticmethod
+    def fetch_pending_telegram_subscriptions(
+        conn: psycopg.Connection[Any],
+        *,
+        limit: int,
+        cooldown_minutes: int,
+    ) -> list[TelegramSubscription]:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                select
+                  ts.user_id,
+                  ts.chat_id,
+                  ts.alerts_enabled,
+                  ts.keyword_filter,
+                  ts.platform_filter::text as platform_filter,
+                  ts.last_alert_sent_at,
+                  ts.last_delivered_match_at
+                from public.telegram_subscriptions ts
+                join public.profiles p on p.id = ts.user_id
+                where ts.chat_id is not null
+                  and ts.alerts_enabled = true
+                  and p.is_active = true
+                  and p.plan_selected_at is not null
+                  and (
+                    p.billing_mode = 'paid'
+                    or (p.billing_mode = 'trial' and p.trial_ends_at > now())
+                  )
+                  and (
+                    ts.last_alert_sent_at is null
+                    or ts.last_alert_sent_at <= now() - (%s * interval '1 minute')
+                  )
+                  and (
+                    ts.last_error_at is null
+                    or ts.last_error_at <= now() - interval '15 minutes'
+                  )
+                order by coalesce(ts.last_alert_sent_at, to_timestamp(0)) asc
+                limit %s
+                """,
+                (max(cooldown_minutes, 1), limit),
+            )
+            rows = cur.fetchall() or []
+
+        return [
+            TelegramSubscription(
+                user_id=row["user_id"],
+                chat_id=int(row["chat_id"]),
+                alerts_enabled=bool(row["alerts_enabled"]),
+                keyword_filter=row["keyword_filter"],
+                platform_filter=row["platform_filter"],
+                last_alert_sent_at=row["last_alert_sent_at"],
+                last_delivered_match_at=row["last_delivered_match_at"],
+            )
+            for row in rows
+        ]
+
+    @staticmethod
+    def fetch_telegram_mentions_since(
+        conn: psycopg.Connection[Any],
+        *,
+        user_id: UUID,
+        since: datetime | None,
+        keyword_filter: str | None,
+        platform_filter: str | None,
+        limit: int,
+    ) -> list[MatchedMention]:
+        normalized_keyword = keyword_filter.strip().lower() if keyword_filter else None
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                select
+                  k.query,
+                  mm.matched_at,
+                  m.platform::text as platform,
+                  m.external_id,
+                  m.url,
+                  coalesce(m.title, 'Mention') as title,
+                  coalesce(m.body_excerpt, '') as body_excerpt,
+                  m.author,
+                  m.community,
+                  m.published_at,
+                  m.raw_payload
+                from public.mention_matches mm
+                join public.keywords k
+                  on k.id = mm.keyword_id
+                 and k.is_active = true
+                join public.mentions m
+                  on m.id = mm.mention_id
+                where mm.user_id = %s
+                  and (%s::timestamptz is null or mm.matched_at > %s)
+                  and (%s::text is null or lower(btrim(k.query)) = %s)
+                  and (%s::text is null or m.platform::text = %s)
+                order by mm.matched_at desc, m.published_at desc, mm.id desc
+                limit %s
+                """,
+                (
+                    user_id,
+                    since,
+                    since,
+                    normalized_keyword,
+                    normalized_keyword,
+                    platform_filter,
+                    platform_filter,
+                    max(limit, 1),
+                ),
+            )
+            rows = cur.fetchall() or []
+
+        mentions: list[MatchedMention] = []
+        for row in rows:
+            mentions.append(
+                MatchedMention(
+                    query=row["query"],
+                    matched_at=row["matched_at"],
+                    mention=MentionCandidate(
+                        platform=row["platform"],
+                        external_id=row["external_id"],
+                        url=row["url"],
+                        title=row["title"],
+                        body_excerpt=row["body_excerpt"],
+                        author=row["author"],
+                        community=row["community"],
+                        published_at=row["published_at"],
+                        raw_payload=row["raw_payload"] or {},
+                    ),
+                )
+            )
+
+        return mentions
+
+    @staticmethod
+    def mark_telegram_alert_sent(
+        conn: psycopg.Connection[Any],
+        *,
+        user_id: UUID,
+        delivered_match_at: datetime | None,
+    ) -> None:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                update public.telegram_subscriptions
+                set last_alert_sent_at = now(),
+                    last_delivered_match_at = coalesce(%s, last_delivered_match_at),
+                    last_error = null,
+                    last_error_at = null,
+                    updated_at = now()
+                where user_id = %s
+                """,
+                (delivered_match_at, user_id),
+            )
+        conn.commit()
+
+    @staticmethod
+    def mark_telegram_alert_error(
+        conn: psycopg.Connection[Any],
+        *,
+        user_id: UUID,
+        error: str,
+    ) -> None:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                update public.telegram_subscriptions
+                set last_error = %s,
+                    last_error_at = now(),
+                    updated_at = now()
+                where user_id = %s
+                """,
+                (error[:800], user_id),
+            )
+        conn.commit()
 
     @staticmethod
     def mark_alert_sent(conn: psycopg.Connection[Any], *, alert_id: int) -> None:

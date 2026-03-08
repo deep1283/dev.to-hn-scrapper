@@ -41,6 +41,24 @@ class PendingAlert:
 
 
 @dataclass
+class MatchedMention:
+    query: str
+    matched_at: datetime
+    mention: MentionCandidate
+
+
+@dataclass
+class TelegramSubscription:
+    user_id: UUID
+    chat_id: int
+    alerts_enabled: bool
+    keyword_filter: str | None
+    platform_filter: str | None
+    last_alert_sent_at: datetime | None
+    last_delivered_match_at: datetime | None
+
+
+@dataclass
 class QueryCacheEntry:
     source: str
     normalized_query: str

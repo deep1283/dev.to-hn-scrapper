@@ -11,6 +11,7 @@ from mention_worker.config import Settings
 from mention_worker.db import Database
 from mention_worker.models import MentionRecord, QueryCacheEntry
 from mention_worker.slack import send_slack_alert
+from mention_worker.telegram import send_telegram_digest
 from mention_worker.sources.registry import SOURCE_DEFINITIONS
 
 
@@ -48,6 +49,7 @@ class Worker:
                         source_requests_today=source_requests_today,
                     )
                     self._process_alerts(conn, http_client, stats)
+                    self._process_telegram_alerts(conn, http_client, stats)
                 retention_cutoff = datetime.now(tz=timezone.utc) - timedelta(
                     days=self.settings.mention_retention_days
                 )
@@ -344,6 +346,58 @@ class Worker:
                     error=str(exc),
                 )
                 stats["alerts_failed"] += 1
+
+    def _process_telegram_alerts(self, conn, http_client: httpx.Client, stats: dict[str, Any]) -> None:
+        if not self.settings.telegram_bot_token:
+            return
+
+        subscriptions = self.db.fetch_pending_telegram_subscriptions(
+            conn,
+            limit=self.settings.alert_batch_size,
+            cooldown_minutes=self.settings.telegram_alert_cooldown_minutes,
+        )
+        stats["telegram_subscriptions_polled"] += len(subscriptions)
+
+        for subscription in subscriptions:
+            try:
+                mentions = self.db.fetch_telegram_mentions_since(
+                    conn,
+                    user_id=subscription.user_id,
+                    since=subscription.last_delivered_match_at,
+                    keyword_filter=subscription.keyword_filter,
+                    platform_filter=subscription.platform_filter,
+                    limit=100,
+                )
+                if not mentions:
+                    continue
+
+                send_telegram_digest(
+                    http_client,
+                    bot_token=self.settings.telegram_bot_token,
+                    subscription=subscription,
+                    mentions=mentions,
+                )
+                latest_match = max((mention.matched_at for mention in mentions), default=None)
+                self.db.mark_telegram_alert_sent(
+                    conn,
+                    user_id=subscription.user_id,
+                    delivered_match_at=latest_match,
+                )
+                stats["telegram_alerts_sent"] += 1
+            except httpx.HTTPStatusError as exc:
+                self.db.mark_telegram_alert_error(
+                    conn,
+                    user_id=subscription.user_id,
+                    error=exc.response.text[:800],
+                )
+                stats["telegram_alert_errors"] += 1
+            except Exception as exc:  # noqa: BLE001
+                self.db.mark_telegram_alert_error(
+                    conn,
+                    user_id=subscription.user_id,
+                    error=str(exc)[:800],
+                )
+                stats["telegram_alert_errors"] += 1
 
     def _retry_delay_seconds(self, retry_count: int) -> int:
         exponent = max(retry_count - 1, 0)
