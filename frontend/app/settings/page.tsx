@@ -48,6 +48,23 @@ type SlackMutationResponse = {
   message?: string
 }
 
+type TelegramStatusResponse = {
+  configured?: boolean
+  connected?: boolean
+  alertsEnabled?: boolean
+  paused?: boolean
+  keywordFilter?: string | null
+  platformFilter?: string | null
+}
+
+type TelegramConnectResponse = TelegramStatusResponse & {
+  botUsername?: string | null
+  botLink?: string | null
+  startCode?: string | null
+  linkExpiresAt?: string | null
+  message?: string
+}
+
 async function parseApiError(response: Response, fallback: string): Promise<string> {
   const payload = (await response.json().catch(() => null)) as { error?: string } | null
   return payload?.error ?? fallback
@@ -75,6 +92,18 @@ export default function SettingsPage() {
   const [slackConnected, setSlackConnected] = useState(false)
   const [slackWebhookHint, setSlackWebhookHint] = useState<string | null>(null)
   const [slackWebhookInput, setSlackWebhookInput] = useState("")
+  const [telegramConfigured, setTelegramConfigured] = useState(false)
+  const [telegramConnected, setTelegramConnected] = useState(false)
+  const [telegramAlertsEnabled, setTelegramAlertsEnabled] = useState(true)
+  const [telegramPaused, setTelegramPaused] = useState(false)
+  const [telegramKeywordFilter, setTelegramKeywordFilter] = useState<string | null>(null)
+  const [telegramPlatformFilter, setTelegramPlatformFilter] = useState<string | null>(null)
+  const [telegramBotUsername, setTelegramBotUsername] = useState<string | null>(null)
+  const [telegramBotLink, setTelegramBotLink] = useState<string | null>(null)
+  const [telegramStartCode, setTelegramStartCode] = useState<string | null>(null)
+  const [telegramLinkExpiresAt, setTelegramLinkExpiresAt] = useState<string | null>(null)
+  const [telegramFeedback, setTelegramFeedback] = useState<string | null>(null)
+  const [isTelegramSaving, setIsTelegramSaving] = useState(false)
 
   useEffect(() => {
     async function bootstrap() {
@@ -97,6 +126,12 @@ export default function SettingsPage() {
         setKeywordRows(payload.keywords)
         setSlackConnected(Boolean(payload.slack.connected))
         setSlackWebhookHint(payload.slack.webhookHint ?? null)
+        setTelegramConfigured(Boolean(payload.telegram?.configured))
+        setTelegramConnected(Boolean(payload.telegram?.connected))
+        setTelegramAlertsEnabled(payload.telegram?.alertsEnabled ?? true)
+        setTelegramPaused(Boolean(payload.telegram?.paused))
+        setTelegramKeywordFilter(payload.telegram?.keywordFilter ?? null)
+        setTelegramPlatformFilter(payload.telegram?.platformFilter ?? null)
       } catch (bootstrapError) {
         const message = bootstrapError instanceof Error ? bootstrapError.message : "Failed to load settings"
         if (message.toLowerCase().includes("please log in")) {
@@ -268,6 +303,77 @@ export default function SettingsPage() {
       setSlackFeedback(slackError instanceof Error ? slackError.message : "Unable to connect Slack updates.")
     } finally {
       setIsSlackSaving(false)
+    }
+  }
+
+  async function connectTelegram() {
+    setError(null)
+    setTelegramFeedback(null)
+    setIsTelegramSaving(true)
+    try {
+      const response = await fetch("/api/integrations/telegram", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error(await parseApiError(response, "Unable to prepare Telegram connection."))
+      }
+
+      const payload = (await response.json()) as TelegramConnectResponse
+      setTelegramConfigured(Boolean(payload.configured))
+      setTelegramConnected(Boolean(payload.connected))
+      setTelegramAlertsEnabled(payload.alertsEnabled ?? true)
+      setTelegramPaused(Boolean(payload.paused))
+      setTelegramKeywordFilter(payload.keywordFilter ?? null)
+      setTelegramPlatformFilter(payload.platformFilter ?? null)
+      setTelegramBotUsername(payload.botUsername ?? null)
+      setTelegramBotLink(payload.botLink ?? null)
+      setTelegramStartCode(payload.startCode ?? null)
+      setTelegramLinkExpiresAt(payload.linkExpiresAt ?? null)
+      setTelegramFeedback(payload.message ?? "Telegram connection is ready.")
+    } catch (telegramError) {
+      setTelegramFeedback(telegramError instanceof Error ? telegramError.message : "Unable to prepare Telegram connection.")
+    } finally {
+      setIsTelegramSaving(false)
+    }
+  }
+
+  async function disconnectTelegram() {
+    setError(null)
+    setTelegramFeedback(null)
+    setIsTelegramSaving(true)
+    try {
+      const response = await fetch("/api/integrations/telegram", {
+        method: "DELETE",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error(await parseApiError(response, "Unable to disconnect Telegram."))
+      }
+
+      const payload = (await response.json()) as TelegramConnectResponse
+      setTelegramConfigured(Boolean(payload.configured))
+      setTelegramConnected(Boolean(payload.connected))
+      setTelegramAlertsEnabled(payload.alertsEnabled ?? true)
+      setTelegramPaused(Boolean(payload.paused))
+      setTelegramKeywordFilter(payload.keywordFilter ?? null)
+      setTelegramPlatformFilter(payload.platformFilter ?? null)
+      setTelegramBotLink(null)
+      setTelegramStartCode(null)
+      setTelegramLinkExpiresAt(null)
+      setTelegramFeedback(payload.message ?? "Telegram disconnected.")
+    } catch (telegramError) {
+      setTelegramFeedback(telegramError instanceof Error ? telegramError.message : "Unable to disconnect Telegram.")
+    } finally {
+      setIsTelegramSaving(false)
     }
   }
 
@@ -445,6 +551,106 @@ export default function SettingsPage() {
               >
                 Manage plan
               </Link>
+            </section>
+
+            <section>
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="font-handwriting text-2xl text-card-foreground sm:text-3xl">Telegram bot</h2>
+                <span className="text-xs font-medium text-muted-foreground">
+                  {telegramConfigured ? (telegramConnected ? "Connected" : "Not connected") : "Not configured"}
+                </span>
+              </div>
+
+              {telegramConfigured ? (
+                <>
+                  {telegramConnected ? (
+                    <div className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3">
+                      <p className="text-sm font-medium text-emerald-700">Telegram is connected</p>
+                      <p className="mt-1 text-xs text-emerald-700/90">
+                        Alerts are {telegramAlertsEnabled && !telegramPaused ? "active" : "paused"}.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="mt-4 rounded-xl border border-border/40 px-4 py-3">
+                      <p className="text-sm text-muted-foreground">Telegram is not connected yet.</p>
+                    </div>
+                  )}
+
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Use Telegram for on-demand mentions and cooldown-based updates. Default replies show 20 mentions. You
+                    can request more up to 100.
+                  </p>
+
+                  {telegramKeywordFilter || telegramPlatformFilter ? (
+                    <p className="mt-3 text-xs text-muted-foreground">
+                      Saved bot filters: keyword{" "}
+                      <span className="font-medium text-foreground">{telegramKeywordFilter ?? "all"}</span> · platform{" "}
+                      <span className="font-medium text-foreground">{telegramPlatformFilter ?? "all"}</span>
+                    </p>
+                  ) : null}
+
+                  <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                    <button
+                      onClick={() => void connectTelegram()}
+                      disabled={isTelegramSaving}
+                      className="h-10 w-full rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
+                    >
+                      {isTelegramSaving ? "Preparing..." : telegramConnected ? "Refresh connect code" : "Connect Telegram"}
+                    </button>
+                    {telegramConnected ? (
+                      <button
+                        onClick={() => void disconnectTelegram()}
+                        disabled={isTelegramSaving}
+                        className="inline-flex h-10 w-full items-center justify-center rounded-full border border-border/40 px-5 text-sm font-medium text-foreground transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
+                      >
+                        Disconnect
+                      </button>
+                    ) : null}
+                  </div>
+
+                  {telegramBotLink ? (
+                    <a
+                      href={telegramBotLink}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-3 inline-flex h-10 items-center justify-center rounded-full border border-border/40 px-5 text-sm font-medium text-foreground transition-opacity hover:opacity-80"
+                    >
+                      Open Telegram bot
+                    </a>
+                  ) : null}
+
+                  {telegramStartCode ? (
+                    <div className="mt-4 rounded-xl border border-border/40 px-4 py-3">
+                      <p className="text-sm font-medium text-foreground">Start code</p>
+                      <p className="mt-2 break-all text-sm text-muted-foreground">/start {telegramStartCode}</p>
+                      {telegramLinkExpiresAt ? (
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          Expires: <span className="font-medium text-foreground">{formatTime(telegramLinkExpiresAt)}</span>
+                        </p>
+                      ) : null}
+                      {telegramBotUsername ? (
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          Bot: <span className="font-medium text-foreground">@{telegramBotUsername}</span>
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
+
+                  <div className="mt-4 rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
+                    <p className="font-medium text-foreground">Bot commands</p>
+                    <p className="mt-2">/latest, /latest 50, /keyword chatgpt 20, /platform hackernews 20</p>
+                    <p className="mt-1">/setkeyword all, /setplatform devto, /filters, /pause, /resume</p>
+                  </div>
+                </>
+              ) : (
+                <div className="mt-4 rounded-xl border border-border/40 px-4 py-3">
+                  <p className="text-sm text-muted-foreground">Telegram bot is not configured on the server yet.</p>
+                </div>
+              )}
+
+              {telegramFeedback ? (
+                <p className="mt-4 rounded-xl border border-border/40 px-4 py-3 text-sm text-foreground">{telegramFeedback}</p>
+              ) : null}
             </section>
 
             <section>

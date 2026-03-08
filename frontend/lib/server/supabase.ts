@@ -56,6 +56,19 @@ function baseHeaders(accessToken?: string): Record<string, string> {
   }
 }
 
+function serviceHeaders(): Record<string, string> {
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!serviceRoleKey) {
+    throw new AppError(500, "Server configuration is incomplete.", "Missing SUPABASE_SERVICE_ROLE_KEY.")
+  }
+
+  return {
+    apikey: serviceRoleKey,
+    Authorization: `Bearer ${serviceRoleKey}`,
+    "Content-Type": "application/json",
+  }
+}
+
 function buildSession(payload: AuthResponse): ServerSession {
   if (!payload.access_token || !payload.refresh_token || !payload.user?.id) {
     throw new AppError(401, "Authentication failed.", "Auth response missing session fields.")
@@ -128,6 +141,44 @@ export async function restRequest<T>(path: string, accessToken: string, init?: R
         : undefined
 
     console.error(`[restRequest] Supabase REST error on ${path}:`, { status: response.status, details })
+    throw new AppError(400, "Request could not be completed.", details ?? `Supabase REST status ${response.status}`)
+  }
+
+  return payload as T
+}
+
+export async function serviceRestRequest<T>(path: string, init?: RequestInit): Promise<T> {
+  const { supabaseUrl } = getSupabaseEnv()
+  const method = (init?.method ?? "GET").toUpperCase()
+  const headers = new Headers(serviceHeaders())
+
+  if (init?.headers) {
+    const incoming = new Headers(init.headers)
+    incoming.forEach((value, key) => headers.set(key, value))
+  }
+
+  if (method !== "GET" && method !== "HEAD" && !headers.has("Prefer")) {
+    headers.set("Prefer", "return=representation")
+  }
+
+  const response = await fetch(`${supabaseUrl}/rest/v1${path}`, {
+    ...init,
+    headers,
+    cache: "no-store",
+  })
+
+  const payload = (await response.json().catch(() => null)) as SupabaseErrorPayload | T | null
+  if (!response.ok) {
+    const details =
+      payload && typeof payload === "object"
+        ? "message" in payload
+          ? payload.message
+          : "error" in payload
+            ? payload.error
+            : undefined
+        : undefined
+
+    console.error(`[serviceRestRequest] Supabase REST error on ${path}:`, { status: response.status, details })
     throw new AppError(400, "Request could not be completed.", details ?? `Supabase REST status ${response.status}`)
   }
 

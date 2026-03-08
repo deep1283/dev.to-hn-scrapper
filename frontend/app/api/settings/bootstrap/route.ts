@@ -5,6 +5,7 @@ import { toErrorResponse, tooManyRequests } from "@/lib/server/errors"
 import { getRequestIp } from "@/lib/server/request"
 import { takeRateLimit } from "@/lib/server/rate-limit"
 import { ensureProfile, listKeywords, restRequest } from "@/lib/server/supabase"
+import { telegramConfigured, type TelegramSubscriptionRow } from "@/lib/server/telegram"
 import { withSessionCookie } from "@/lib/server/session"
 import { isTrialExpired } from "@/lib/server/validation"
 
@@ -39,6 +40,16 @@ async function getSlackWebhook(accessToken: string, userId: string): Promise<str
   return typeof raw === "string" && raw.trim() ? raw.trim() : null
 }
 
+async function getTelegramSubscription(accessToken: string, userId: string): Promise<TelegramSubscriptionRow | null> {
+  const rows = await restRequest<TelegramSubscriptionRow[]>(
+    `/telegram_subscriptions?user_id=eq.${encodeURIComponent(
+      userId,
+    )}&select=user_id,chat_id,alerts_enabled,keyword_filter,platform_filter,link_token,link_token_expires_at,connected_at,paused_at,last_alert_sent_at,last_delivered_match_at,last_error,last_error_at&limit=1`,
+    accessToken,
+  )
+  return rows[0] ?? null
+}
+
 export async function GET(request: NextRequest) {
   try {
     const auth = await requireAuth(request)
@@ -57,12 +68,13 @@ export async function GET(request: NextRequest) {
           ? "/onboarding"
           : "/settings"
 
-    const [keywords, slackWebhook] = nextRoute === "/settings"
+    const [keywords, slackWebhook, telegramSubscription] = nextRoute === "/settings"
       ? await Promise.all([
           listKeywords(auth.accessToken, profile.id, false),
           getSlackWebhook(auth.accessToken, profile.id),
+          telegramConfigured() ? getTelegramSubscription(auth.accessToken, profile.id) : Promise.resolve(null),
         ])
-      : [[], null]
+      : [[], null, null]
 
     const response = NextResponse.json({
       user: auth.user,
@@ -72,6 +84,14 @@ export async function GET(request: NextRequest) {
         connected: Boolean(slackWebhook),
         webhookHint: toWebhookHint(slackWebhook),
         canUseSlack: profile.plan_tier === "growth_15",
+      },
+      telegram: {
+        configured: telegramConfigured(),
+        connected: Boolean(telegramSubscription?.chat_id),
+        alertsEnabled: telegramSubscription?.alerts_enabled ?? true,
+        paused: Boolean(telegramSubscription?.paused_at) || telegramSubscription?.alerts_enabled === false,
+        keywordFilter: telegramSubscription?.keyword_filter ?? null,
+        platformFilter: telegramSubscription?.platform_filter ?? null,
       },
       nextRoute,
     })
