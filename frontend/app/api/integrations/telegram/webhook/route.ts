@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 
-import { toErrorResponse } from "@/lib/server/errors"
+import { resolveSignalzeHomeUrl, toErrorResponse } from "@/lib/server/errors"
 import { serviceRestRequest } from "@/lib/server/supabase"
 import {
   getTelegramWebhookSecret,
@@ -319,7 +319,10 @@ export async function POST(request: NextRequest) {
     try {
       ensureActiveEntitlement(profile)
     } catch {
-      await reply(chatId, "Your Signalze plan or trial is inactive. Renew in Signalze to use Telegram mentions.")
+      await reply(
+        chatId,
+        `Your Signalze plan or trial is inactive. Please subscribe for more at ${resolveSignalzeHomeUrl()}.`,
+      )
       return NextResponse.json({ ok: true })
     }
 

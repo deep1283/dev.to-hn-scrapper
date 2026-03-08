@@ -59,7 +59,9 @@ export function isTrialExpired(profile: Pick<ProfileRow, "billing_mode" | "trial
   return !Number.isNaN(expiresAt) && expiresAt <= Date.now()
 }
 
-export function ensureActiveEntitlement(profile: ProfileRow) {
+export function ensureActiveEntitlement(
+  profile: Pick<ProfileRow, "plan_selected_at" | "billing_mode" | "trial_ends_at">,
+) {
   if (!profile.plan_selected_at) {
     throw badRequest("Select a plan to continue.")
   }

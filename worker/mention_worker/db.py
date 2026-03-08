@@ -455,6 +455,10 @@ class Database:
                 from public.profiles p
                 where p.id = %s
                   and p.plan_tier = 'growth_15'
+                  and (
+                    p.billing_mode = 'paid'
+                    or (p.billing_mode = 'trial' and p.trial_ends_at > now())
+                  )
                   and coalesce(nullif(btrim(p.slack_webhook_url_enc), ''), '') <> ''
                 on conflict (user_id, mention_id, keyword_id, channel) do nothing
                 returning id
@@ -498,6 +502,10 @@ class Database:
                   and ad.next_attempt_at <= now()
                   and ad.retry_count < %s
                   and p.plan_tier = 'growth_15'
+                  and (
+                    p.billing_mode = 'paid'
+                    or (p.billing_mode = 'trial' and p.trial_ends_at > now())
+                  )
                   and coalesce(nullif(btrim(p.slack_webhook_url_enc), ''), '') <> ''
                 order by ad.next_attempt_at asc
                 limit %s
