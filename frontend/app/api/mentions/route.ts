@@ -37,19 +37,14 @@ type MentionBody = {
 type MentionMatchRow = {
   matched_query: string
   matched_at: string | null
-  keywords: {
-    is_active: boolean
-  } | null
-  mentions: {
-    platform: ActivePlatform
-    external_id: string
-    url: string
-    title: string | null
-    body_excerpt: string | null
-    author: string | null
-    community: string | null
-    published_at: string
-  } | null
+  platform: ActivePlatform
+  external_id: string
+  url: string
+  title: string | null
+  body_excerpt: string | null
+  author: string | null
+  community: string | null
+  published_at: string
 }
 
 function latestMatchedIso(rows: MentionMatchRow[]): string | null {
@@ -313,16 +308,13 @@ function fairLimitMentionsPerPlatform(
 
 function candidateRowLimit(perPlatformLimit: number, activeKeywordCount: number): number {
   const keywordCount = Math.max(activeKeywordCount, 1)
+  const baseShare = Math.ceil(perPlatformLimit / keywordCount)
 
-  // Equal-share selection only works if the candidate pool is broad enough.
-  // Pull a deeper pool when users track several keywords so quieter terms
-  // are present before the final balancing step.
+  // Fetch several windows per keyword so equal-share selection has
+  // enough headroom, but keep the per-keyword slice bounded.
   return Math.min(
-    Math.max(
-      perPlatformLimit * 18,
-      keywordCount * 300,
-    ),
-    10000,
+    Math.max(baseShare * 4, 40),
+    250,
   )
 }
 
@@ -369,43 +361,37 @@ export async function POST(request: NextRequest) {
     const activeKeywordKeys = activeKeywords
       .map((keyword) => normalizedTermKey(keyword.query))
       .filter((keyword, index, array) => Boolean(keyword) && array.indexOf(keyword) === index)
-    const cutoff = new Date()
-    cutoff.setUTCHours(0, 0, 0, 0)
-    cutoff.setUTCDate(cutoff.getUTCDate() - HISTORY_DAYS)
-    const timeFilter = `&mentions.published_at=gte.${encodeURIComponent(cutoff.toISOString())}`
-    const perPlatformRowLimit = candidateRowLimit(perPlatformLimit, activeKeywords.length)
-    const rowsByPlatform = await Promise.all(
-      platforms.map((platform) =>
-        restRequest<MentionMatchRow[]>(
-          `/mention_matches?user_id=eq.${encodeURIComponent(
-            auth.userId,
-          )}&select=matched_query,matched_at,keywords!inner(is_active),mentions!inner(platform,external_id,url,title,body_excerpt,author,community,published_at)&keywords.is_active=is.true&mentions.platform=eq.${platform}${timeFilter}&order=matched_at.desc&limit=${perPlatformRowLimit}`,
-          auth.accessToken,
-        ),
-      ),
+    const perKeywordCandidateLimit = candidateRowLimit(perPlatformLimit, activeKeywords.length)
+    const rows = await restRequest<MentionMatchRow[]>(
+      `/rpc/fetch_dashboard_mention_candidates`,
+      auth.accessToken,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          p_user_id: auth.userId,
+          p_platforms: platforms,
+          p_history_days: HISTORY_DAYS,
+          p_per_keyword_limit: perKeywordCandidateLimit,
+        }),
+      },
     )
-    const rows = rowsByPlatform.flat()
 
     const merged = new Map<string, Mention>()
     for (const row of rows) {
-      const mentionRow = row.mentions
-      if (!mentionRow) {
-        continue
-      }
-      const key = `${mentionRow.platform}:${mentionRow.external_id}`
+      const key = `${row.platform}:${row.external_id}`
       const term = normalizeText(String(row.matched_query ?? ""))
 
       const existing = merged.get(key)
       if (!existing) {
         merged.set(key, {
-          platform: mentionRow.platform,
-          externalId: mentionRow.external_id,
-          url: mentionRow.url,
-          title: normalizeText(mentionRow.title ?? "") || "Mention",
-          excerpt: normalizeText(mentionRow.body_excerpt ?? "").slice(0, 450),
-          author: mentionRow.author,
-          community: mentionRow.community,
-          publishedAt: toIso(mentionRow.published_at),
+          platform: row.platform,
+          externalId: row.external_id,
+          url: row.url,
+          title: normalizeText(row.title ?? "") || "Mention",
+          excerpt: normalizeText(row.body_excerpt ?? "").slice(0, 450),
+          author: row.author,
+          community: row.community,
+          publishedAt: toIso(row.published_at),
           matchedTerms: term ? [term] : [],
         })
         continue
