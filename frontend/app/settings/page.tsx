@@ -4,7 +4,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { useEffect, useMemo, useState } from "react"
 
-import { SettingsSkeleton } from "@/components/settings/settings-skeleton"
+import { Skeleton } from "@/components/ui/skeleton"
 import { PLAN_CONFIG, type PlanId } from "@/lib/plans"
 import {
   bootstrapKeywordMentions,
@@ -158,6 +158,7 @@ export default function SettingsPage() {
 
   const keywordLimitReached = activeKeywords.length >= planConfig.maxKeywords
   const canUseSlack = plan === "growth_15"
+  const showBootstrapLoading = isLoading && !session && !error
 
   async function addKeyword() {
     if (!session || keywordLimitReached) {
@@ -438,10 +439,6 @@ export default function SettingsPage() {
     }
   }
 
-  if (isLoading) {
-    return <SettingsSkeleton />
-  }
-
   return (
     <main className="min-h-screen bg-background px-4 py-6 sm:px-6 md:py-10">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
@@ -524,6 +521,55 @@ export default function SettingsPage() {
           ) : null}
 
           <div className="mt-8 flex max-w-4xl flex-col gap-10">
+            {showBootstrapLoading ? (
+              <>
+                <section>
+                  <Skeleton className="h-9 w-36" />
+                  <Skeleton className="mt-2 h-4 w-24" />
+                  <div className="mt-4 grid grid-cols-1 gap-4 sm:max-w-xs">
+                    <div>
+                      <Skeleton className="h-4 w-16" />
+                      <Skeleton className="mt-2 h-9 w-20" />
+                    </div>
+                  </div>
+                  <Skeleton className="mt-4 h-4 w-40" />
+                  <Skeleton className="mt-2 h-4 w-48" />
+                  <Skeleton className="mt-5 h-10 w-full rounded-full sm:w-32" />
+                </section>
+
+                <section>
+                  <div className="flex items-center justify-between gap-3">
+                    <Skeleton className="h-9 w-36" />
+                    <Skeleton className="h-4 w-20" />
+                  </div>
+                  <Skeleton className="mt-4 h-16 rounded-xl" />
+                  <Skeleton className="mt-4 h-4 w-72 max-w-full" />
+                  <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                    <Skeleton className="h-10 w-full rounded-xl" />
+                    <Skeleton className="h-10 w-full rounded-xl sm:w-28" />
+                  </div>
+                </section>
+
+                <section>
+                  <div className="flex items-center justify-between gap-3">
+                    <Skeleton className="h-9 w-28" />
+                    <Skeleton className="h-4 w-12" />
+                  </div>
+                  <Skeleton className="mt-2 h-4 w-72 max-w-full" />
+                  <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                    <Skeleton className="h-10 w-full rounded-xl" />
+                    <Skeleton className="h-10 w-full rounded-xl sm:w-24" />
+                  </div>
+                  <Skeleton className="mt-3 h-10 w-24 rounded-full" />
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {Array.from({ length: 5 }, (_, index) => (
+                      <Skeleton key={index} className="h-8 w-24 rounded-full" />
+                    ))}
+                  </div>
+                </section>
+              </>
+            ) : (
+              <>
             <section>
               <h2 className="font-handwriting text-2xl text-card-foreground sm:text-3xl">Plan details</h2>
               <p className="mt-1 text-sm text-muted-foreground">
@@ -796,6 +842,8 @@ export default function SettingsPage() {
                 {!activeKeywords.length ? <p className="text-sm text-muted-foreground">No keywords added yet.</p> : null}
               </div>
             </section>
+              </>
+            )}
           </div>
         </section>
       </div>

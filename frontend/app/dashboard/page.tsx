@@ -5,7 +5,7 @@ import Link from "next/link"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import useSWR from "swr"
 
-import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   ACTIVE_PLATFORMS,
   PLATFORM_FILTERS,
@@ -428,11 +428,8 @@ export default function DashboardPage() {
     window.location.replace("/")
   }
 
-  const showInitialLoading = isLoading || (Boolean(profileId) && isMentionsLoading && !mentionsData && !mentionsError)
-
-  if (showInitialLoading) {
-    return <DashboardSkeleton />
-  }
+  const showProfileLoading = isLoading && keywordRows.length === 0 && !error
+  const showMentionsLoading = !error && (isLoading || (Boolean(profileId) && isMentionsLoading && !mentionsData && !mentionsError))
 
   return (
     <main className="min-h-screen overflow-x-hidden bg-background px-4 py-6 sm:px-6 md:py-10">
@@ -476,7 +473,11 @@ export default function DashboardPage() {
           <div className="mt-3">
             <p className="text-xs font-medium text-muted-foreground">Keywords</p>
             <div className="mt-2 flex flex-wrap gap-2">
-              {activeKeywords.length ? (
+              {showProfileLoading ? (
+                Array.from({ length: 4 }, (_, index) => (
+                  <Skeleton key={index} className="h-7 w-24 rounded-full" />
+                ))
+              ) : activeKeywords.length ? (
                 activeKeywords.map((keyword) => (
                   <span key={keyword.id} className="max-w-full break-all rounded-full border border-border/40 px-3 py-1 text-xs text-foreground">
                     {keyword.query}
@@ -496,7 +497,7 @@ export default function DashboardPage() {
               {hasNewMentions ? (
                 <button
                   onClick={() => void fetchMentions()}
-                  disabled={isRefreshingMentions}
+                  disabled={isRefreshingMentions || showMentionsLoading}
                   className="inline-flex h-10 items-center justify-center rounded-full border border-border/40 px-6 text-sm font-semibold text-foreground transition-all hover:opacity-80 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
                 >
                   {isRefreshingMentions ? "Refreshing..." : "Refresh feed"}
@@ -518,18 +519,30 @@ export default function DashboardPage() {
             </p>
           ) : null}
 
-          <div className="mt-5 grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-4">
-            <StatCard label="Total" value={counts.total} />
-            {ACTIVE_PLATFORMS.map((platform) => (
-              <StatCard key={platform} label={PLATFORM_LABELS[platform]} value={counts.byPlatform[platform]} />
-            ))}
-          </div>
+          {showMentionsLoading ? (
+            <div className="mt-5 grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-4">
+              {Array.from({ length: 4 }, (_, index) => (
+                <div key={index} className="min-w-0 px-1 py-2">
+                  <Skeleton className="h-4 w-16" />
+                  <Skeleton className="mt-2 h-8 w-20" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-5 grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-4">
+              <StatCard label="Total" value={counts.total} />
+              {ACTIVE_PLATFORMS.map((platform) => (
+                <StatCard key={platform} label={PLATFORM_LABELS[platform]} value={counts.byPlatform[platform]} />
+              ))}
+            </div>
+          )}
 
           <div className="-mx-1 mt-5 flex gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
             {PLATFORM_FILTERS.map((platform) => (
               <button
                 key={platform}
                 onClick={() => setActivePlatform(platform)}
+                disabled={showMentionsLoading}
                 className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition-all ${
                   activePlatform === platform
                     ? "border border-border/50 text-foreground"
@@ -549,6 +562,7 @@ export default function DashboardPage() {
               id="keyword-filter"
               value={activeKeyword}
               onChange={(event) => setActiveKeyword(event.target.value)}
+              disabled={showMentionsLoading}
               className="h-11 w-full rounded-2xl border border-border/50 bg-card px-4 text-sm text-foreground outline-none transition-colors focus:border-border"
             >
               <option value="all">All keywords</option>
@@ -561,36 +575,61 @@ export default function DashboardPage() {
           </div>
 
           <div className="mt-5 min-w-0 space-y-6">
-            <section className="min-w-0 rounded-2xl border border-border/50 bg-secondary/25 p-4">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Today</h3>
-              {mentionTimeline.today.length ? (
-                <div className="mt-3 grid min-w-0 gap-3 sm:grid-cols-2">
-                  {mentionTimeline.today.map((mention) => (
-                    <MentionCard key={`${mention.platform}:${mention.externalId}`} mention={mention} />
-                  ))}
-                </div>
-              ) : (
-                <p className="mt-3 text-sm text-muted-foreground">No mentions today yet.</p>
-              )}
-            </section>
-
-            {mentionTimeline.previousDays.map((day) => (
-              <section key={day.key} className="min-w-0 rounded-2xl border border-border/40 p-4">
-                <h3 className="text-sm font-semibold text-muted-foreground">{day.label}</h3>
-                {day.mentions.length ? (
+            {showMentionsLoading ? (
+              <>
+                <section className="min-w-0 rounded-2xl border border-border/50 bg-secondary/25 p-4">
+                  <Skeleton className="h-4 w-14" />
                   <div className="mt-3 grid min-w-0 gap-3 sm:grid-cols-2">
-                    {day.mentions.map((mention) => (
-                      <MentionCard key={`${mention.platform}:${mention.externalId}`} mention={mention} />
+                    {Array.from({ length: 2 }, (_, index) => (
+                      <Skeleton key={index} className="h-44 rounded-xl" />
                     ))}
                   </div>
-                ) : (
-                  <p className="mt-3 text-sm text-muted-foreground">No mentions.</p>
-                )}
-              </section>
-            ))}
+                </section>
+                {Array.from({ length: 2 }, (_, index) => (
+                  <section key={index} className="min-w-0 rounded-2xl border border-border/40 p-4">
+                    <Skeleton className="h-4 w-36" />
+                    <div className="mt-3 grid min-w-0 gap-3 sm:grid-cols-2">
+                      {Array.from({ length: 2 }, (_, cardIndex) => (
+                        <Skeleton key={cardIndex} className="h-44 rounded-xl" />
+                      ))}
+                    </div>
+                  </section>
+                ))}
+              </>
+            ) : (
+              <>
+                <section className="min-w-0 rounded-2xl border border-border/50 bg-secondary/25 p-4">
+                  <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Today</h3>
+                  {mentionTimeline.today.length ? (
+                    <div className="mt-3 grid min-w-0 gap-3 sm:grid-cols-2">
+                      {mentionTimeline.today.map((mention) => (
+                        <MentionCard key={`${mention.platform}:${mention.externalId}`} mention={mention} />
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-3 text-sm text-muted-foreground">No mentions today yet.</p>
+                  )}
+                </section>
+
+                {mentionTimeline.previousDays.map((day) => (
+                  <section key={day.key} className="min-w-0 rounded-2xl border border-border/40 p-4">
+                    <h3 className="text-sm font-semibold text-muted-foreground">{day.label}</h3>
+                    {day.mentions.length ? (
+                      <div className="mt-3 grid min-w-0 gap-3 sm:grid-cols-2">
+                        {day.mentions.map((mention) => (
+                          <MentionCard key={`${mention.platform}:${mention.externalId}`} mention={mention} />
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-3 text-sm text-muted-foreground">No mentions.</p>
+                    )}
+                  </section>
+                ))}
+              </>
+            )}
           </div>
 
-          {!mentionTimeline.hasAny ? (
+          {!showMentionsLoading && !mentionTimeline.hasAny ? (
             <p className="mt-5 rounded-xl border border-dashed border-border/40 p-8 text-center text-sm text-muted-foreground">
               No mentions yet. New mentions appear after the worker refresh cycle.
             </p>

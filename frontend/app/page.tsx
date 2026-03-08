@@ -1,15 +1,29 @@
 import type { Metadata } from "next"
+import dynamic from "next/dynamic"
 
 import { Navbar } from "@/components/landing/navbar"
 import { Hero } from "@/components/landing/hero"
 import { HowItWorks } from "@/components/landing/how-it-works"
-import { Platforms } from "@/components/landing/platforms"
 import { Features } from "@/components/landing/features"
-import { UseCases } from "@/components/landing/use-cases"
-import { PricingSection } from "@/components/landing/pricing-section"
-import { CTAFooter } from "@/components/landing/cta-footer"
 import { PLAN_CONFIG } from "@/lib/plans"
 import { resolveSiteUrl } from "@/lib/site-url"
+
+const Platforms = dynamic(
+  () => import("@/components/landing/platforms").then((mod) => mod.Platforms),
+  { loading: () => <LandingSectionPlaceholder heightClassName="h-[520px]" /> },
+)
+const UseCases = dynamic(
+  () => import("@/components/landing/use-cases").then((mod) => mod.UseCases),
+  { loading: () => <LandingSectionPlaceholder heightClassName="h-[420px]" /> },
+)
+const PricingSection = dynamic(
+  () => import("@/components/landing/pricing-section").then((mod) => mod.PricingSection),
+  { loading: () => <LandingSectionPlaceholder heightClassName="h-[420px]" /> },
+)
+const CTAFooter = dynamic(
+  () => import("@/components/landing/cta-footer").then((mod) => mod.CTAFooter),
+  { loading: () => <LandingSectionPlaceholder heightClassName="h-[260px]" /> },
+)
 
 export const metadata: Metadata = {
   title: "Brand Monitoring for Hacker News, Dev.to, and GitHub Discussions",
@@ -106,6 +120,14 @@ const structuredData = {
       ],
     },
   ],
+}
+
+function LandingSectionPlaceholder({ heightClassName }: { heightClassName: string }) {
+  return (
+    <section className="px-4 py-16 sm:px-6 sm:py-20 md:py-32">
+      <div className={`mx-auto max-w-6xl rounded-3xl border border-border/40 bg-card/40 ${heightClassName}`} />
+    </section>
+  )
 }
 
 export default function Home() {

@@ -72,16 +72,6 @@ export default function UpgradePage() {
     void bootstrap()
   }, [router])
 
-  if (!ready) {
-    return (
-      <main className="min-h-screen bg-background px-4 py-8">
-        <div className="mx-auto w-full max-w-3xl rounded-2xl border border-border/60 bg-card p-6 text-sm text-muted-foreground">
-          Loading...
-        </div>
-      </main>
-    )
-  }
-
   return (
     <main className="min-h-screen bg-background px-4 py-16 sm:px-6 md:py-24">
       <div className="mx-auto flex w-full max-w-5xl flex-col items-center gap-12">
@@ -98,6 +88,11 @@ export default function UpgradePage() {
           <p className="mt-4 max-w-xl text-base text-muted-foreground">
             Upgrade now to continue tracking mentions across Hacker News, Dev.to, and GitHub Discussions.
           </p>
+          {!ready ? (
+            <p className="mt-4 inline-flex rounded-xl border border-border/40 bg-card px-4 py-2 text-sm text-muted-foreground">
+              Checking your account status...
+            </p>
+          ) : null}
         </div>
 
         <div className="grid w-full max-w-3xl gap-6 sm:grid-cols-2">
@@ -151,7 +146,7 @@ export default function UpgradePage() {
 
                 <button
                   type="button"
-                  disabled={isUpgrading !== null}
+                  disabled={!ready || isUpgrading !== null}
                   onClick={() => {
                     if (!session) {
                       router.push("/login")

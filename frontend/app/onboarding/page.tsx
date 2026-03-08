@@ -4,7 +4,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useEffect, useMemo, useState } from "react"
 
-import { OnboardingSkeleton } from "@/components/onboarding/onboarding-skeleton"
+import { Skeleton } from "@/components/ui/skeleton"
 import { PLAN_CONFIG, type PlanId } from "@/lib/plans"
 import {
   getOnboardingBootstrap,
@@ -71,6 +71,7 @@ export default function OnboardingPage() {
 
   const hasRequiredData = useMemo(() => terms.length > 0, [terms.length])
   const termLimitReached = terms.length >= plan.maxKeywords
+  const showBootstrapLoading = isLoading && !session && !error
 
   function addTerm() {
     setError(null)
@@ -121,10 +122,6 @@ export default function OnboardingPage() {
     }
   }
 
-  if (isLoading) {
-    return <OnboardingSkeleton />
-  }
-
   return (
     <main className="min-h-screen bg-background px-4 py-8 sm:px-6 md:py-12">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
@@ -146,7 +143,7 @@ export default function OnboardingPage() {
           <div className="flex items-center justify-between">
             <h2 className="font-serif text-xl text-foreground">Keywords to track</h2>
             <span className="rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-              {terms.length}/{plan.maxKeywords}
+              {showBootstrapLoading ? "..." : `${terms.length}/${plan.maxKeywords}`}
             </span>
           </div>
 
@@ -160,13 +157,13 @@ export default function OnboardingPage() {
                   addTerm()
                 }
               }}
-              disabled={termLimitReached}
+              disabled={termLimitReached || showBootstrapLoading}
               placeholder={termLimitReached ? "Keyword limit reached" : "e.g. signalze, social listening, ai"}
               className="h-10 w-full rounded-xl border border-input bg-background px-4 text-base text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-accent/40 disabled:opacity-50 md:text-sm"
             />
             <button
               onClick={addTerm}
-              disabled={termLimitReached}
+              disabled={termLimitReached || showBootstrapLoading}
               className="h-10 w-full shrink-0 rounded-xl bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
             >
               {termLimitReached ? "Limit reached" : "Add"}
@@ -174,34 +171,47 @@ export default function OnboardingPage() {
           </div>
 
           <div className="mt-4 flex flex-wrap gap-2">
-            {terms.map((term) => (
-              <button
-                key={term}
-                onClick={() => removeTerm(term)}
-                className="group max-w-full break-all rounded-full bg-secondary px-3.5 py-1.5 text-xs font-medium text-secondary-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-              >
-                {term} <span className="opacity-50 group-hover:opacity-100">×</span>
-              </button>
-            ))}
-            {!terms.length ? <p className="text-sm text-muted-foreground">No keywords added yet.</p> : null}
+            {showBootstrapLoading
+              ? Array.from({ length: 4 }, (_, index) => <Skeleton key={index} className="h-8 w-24 rounded-full" />)
+              : terms.map((term) => (
+                  <button
+                    key={term}
+                    onClick={() => removeTerm(term)}
+                    className="group max-w-full break-all rounded-full bg-secondary px-3.5 py-1.5 text-xs font-medium text-secondary-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    {term} <span className="opacity-50 group-hover:opacity-100">×</span>
+                  </button>
+                ))}
+            {!showBootstrapLoading && !terms.length ? <p className="text-sm text-muted-foreground">No keywords added yet.</p> : null}
           </div>
         </section>
 
         <section className="rounded-2xl border border-border/60 bg-card p-5 sm:p-6">
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div>
-              <p className="text-xs text-muted-foreground">Plan</p>
-              <p className="mt-1 font-serif text-xl text-foreground">{plan.name}</p>
+          {showBootstrapLoading ? (
+            <div className="grid gap-4 sm:grid-cols-3">
+              {Array.from({ length: 3 }, (_, index) => (
+                <div key={index}>
+                  <Skeleton className="h-4 w-16" />
+                  <Skeleton className="mt-2 h-7 w-24" />
+                </div>
+              ))}
             </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Billing</p>
-              <p className="mt-1 text-sm font-medium text-foreground">{billing === "trial" ? "Free trial" : "Paid"}</p>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div>
+                <p className="text-xs text-muted-foreground">Plan</p>
+                <p className="mt-1 font-serif text-xl text-foreground">{plan.name}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Billing</p>
+                <p className="mt-1 text-sm font-medium text-foreground">{billing === "trial" ? "Free trial" : "Paid"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Keyword limit</p>
+                <p className="mt-1 text-sm font-medium text-foreground">{plan.maxKeywords}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Keyword limit</p>
-              <p className="mt-1 text-sm font-medium text-foreground">{plan.maxKeywords}</p>
-            </div>
-          </div>
+          )}
         </section>
 
         {error ? (
@@ -211,7 +221,7 @@ export default function OnboardingPage() {
         <div className="flex items-center justify-end gap-3">
           <button
             onClick={continueToDashboard}
-            disabled={isSubmitting || !hasRequiredData}
+            disabled={showBootstrapLoading || isSubmitting || !hasRequiredData}
             className="inline-flex h-11 items-center justify-center rounded-full bg-primary px-6 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary/90 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isSubmitting ? "Saving..." : "Done"}

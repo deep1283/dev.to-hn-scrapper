@@ -100,6 +100,7 @@ function LoginForm() {
   const [isGoogleRedirecting, setIsGoogleRedirecting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const isPageBusy = isCheckingSession || isSubmitting || isPasswordSubmitting || isGoogleRedirecting
 
   useEffect(() => {
     if (hasClerk) {
@@ -188,16 +189,6 @@ function LoginForm() {
     }
   }
 
-  if (isCheckingSession) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-background px-4">
-        <div className="rounded-2xl border border-border/60 bg-card px-6 py-4 text-sm text-muted-foreground">
-          Loading...
-        </div>
-      </main>
-    )
-  }
-
   return (
     <main className="flex min-h-screen bg-background">
       {/* Left panel — Illustration (hidden on mobile) */}
@@ -238,12 +229,17 @@ function LoginForm() {
             <p className="mt-2 text-sm text-muted-foreground">
               Use Google or a passwordless magic link to continue.
             </p>
+            {isCheckingSession ? (
+              <p className="mt-3 rounded-xl border border-border/40 bg-card px-4 py-2 text-sm text-muted-foreground">
+                Checking your session...
+              </p>
+            ) : null}
           </div>
 
           <button
             type="button"
             onClick={handleGoogleSignIn}
-            disabled={isGoogleRedirecting || isSubmitting || isPasswordSubmitting}
+            disabled={isPageBusy}
             className="mt-6 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-input bg-card px-4 text-sm font-semibold text-foreground transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-70"
           >
             <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
@@ -269,7 +265,7 @@ function LoginForm() {
                 required
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                disabled={isSubmitting || isGoogleRedirecting || isPasswordSubmitting}
+                disabled={isPageBusy}
                 className="h-11 w-full rounded-xl border border-input bg-background px-4 text-base text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-accent/40 md:text-sm"
                 placeholder="you@company.com"
               />
@@ -288,7 +284,7 @@ function LoginForm() {
 
             <button
               type="submit"
-              disabled={isSubmitting || isGoogleRedirecting || isPasswordSubmitting}
+              disabled={isPageBusy}
               className="mt-1 inline-flex h-11 w-full items-center justify-center rounded-full bg-accent px-6 text-sm font-semibold text-accent-foreground transition-all hover:brightness-95 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
             >
               {isSubmitting ? "Sending magic link..." : "Send magic link"}
@@ -305,7 +301,7 @@ function LoginForm() {
                 maxLength={128}
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                disabled={isPasswordSubmitting || isSubmitting || isGoogleRedirecting}
+                disabled={isPageBusy}
                 className="h-11 w-full rounded-xl border border-input bg-background px-4 text-base text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-accent/40 md:text-sm"
                 placeholder="Enter your password"
               />
@@ -313,7 +309,7 @@ function LoginForm() {
 
             <button
               type="submit"
-              disabled={isPasswordSubmitting || isSubmitting || isGoogleRedirecting}
+              disabled={isPageBusy}
               className="inline-flex h-11 w-full items-center justify-center rounded-full border border-input bg-card px-6 text-sm font-semibold text-foreground transition-all hover:bg-secondary active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
             >
               {isPasswordSubmitting ? "Signing in..." : "Sign in with password"}
