@@ -42,6 +42,18 @@ type KeywordBootstrapPayload = {
   nextRoute: string
 }
 
+type SettingsBootstrapPayload = {
+  user: SessionData["user"]
+  profile: ProfileRow
+  keywords: KeywordRow[]
+  slack: {
+    connected?: boolean
+    webhookHint?: string | null
+    canUseSlack?: boolean
+  }
+  nextRoute: string
+}
+
 type OnboardingSetupPayload = {
   ok: boolean
   nextRoute: string
@@ -201,6 +213,12 @@ export async function syncTrackingSetup(_session: SessionData, terms: string[]):
 
 export async function getOnboardingBootstrap(): Promise<KeywordBootstrapPayload> {
   return apiRequest<KeywordBootstrapPayload>("/api/onboarding/bootstrap", {
+    method: "GET",
+  })
+}
+
+export async function getSettingsBootstrap(): Promise<SettingsBootstrapPayload> {
+  return apiRequest<SettingsBootstrapPayload>("/api/settings/bootstrap", {
     method: "GET",
   })
 }

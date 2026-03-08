@@ -4,14 +4,12 @@ import Image from "next/image"
 import Link from "next/link"
 import { useEffect, useMemo, useState } from "react"
 
-import { isTrialExpired } from "@/lib/client/billing"
+import { SettingsSkeleton } from "@/components/settings/settings-skeleton"
 import { PLAN_CONFIG, type PlanId } from "@/lib/plans"
 import {
   bootstrapKeywordMentions,
-  ensureProfile,
-  getValidSession,
+  getSettingsBootstrap,
   insertKeyword,
-  listKeywords,
   updateKeyword,
   type BillingMode,
   type KeywordRow,
@@ -81,54 +79,30 @@ export default function SettingsPage() {
   useEffect(() => {
     async function bootstrap() {
       try {
-        const validSession = await getValidSession()
-        if (!validSession) {
-          window.location.replace(AUTH_ENTRY_PATH)
+        const payload = await getSettingsBootstrap()
+        if (payload.nextRoute !== "/settings") {
+          window.location.replace(payload.nextRoute === "/login" ? AUTH_ENTRY_PATH : payload.nextRoute)
           return
         }
 
+        const validSession = { user: payload.user }
         setSession(validSession)
-
-        const profile = await ensureProfile(validSession)
-        if (!profile?.plan_selected_at) {
-          window.location.replace("/pricing")
-          return
-        }
-
-        if (isTrialExpired(profile.billing_mode, profile.trial_ends_at)) {
-          window.location.replace("/upgrade")
-          return
-        }
-
-        if (!profile.onboarding_completed) {
-          window.location.replace("/onboarding")
-          return
-        }
+        const profile = payload.profile
 
         setPlan(profile.plan_tier)
         setPendingPlan(profile.pending_plan_tier)
         setPendingPlanEffectiveAt(profile.pending_plan_effective_at)
         setBilling(profile.billing_mode ?? "trial")
         setTrialEndsAt(profile.trial_ends_at ?? null)
-
-        const [keywords, slackStatusResponse] = await Promise.all([
-          listKeywords(validSession),
-          fetch("/api/integrations/slack", {
-            method: "GET",
-            credentials: "include",
-            headers: {
-              "Content-Type": "application/json",
-            },
-          }),
-        ])
-        setKeywordRows(keywords)
-        if (slackStatusResponse.ok) {
-          const slackStatus = (await slackStatusResponse.json()) as SlackStatusResponse
-          setSlackConnected(Boolean(slackStatus.connected))
-          setSlackWebhookHint(slackStatus.webhookHint ?? null)
-        }
+        setKeywordRows(payload.keywords)
+        setSlackConnected(Boolean(payload.slack.connected))
+        setSlackWebhookHint(payload.slack.webhookHint ?? null)
       } catch (bootstrapError) {
         const message = bootstrapError instanceof Error ? bootstrapError.message : "Failed to load settings"
+        if (message.toLowerCase().includes("please log in")) {
+          window.location.replace(AUTH_ENTRY_PATH)
+          return
+        }
         if (message.toLowerCase().includes("trial has ended")) {
           window.location.replace("/upgrade")
           return
@@ -357,11 +331,7 @@ export default function SettingsPage() {
   }
 
   if (isLoading) {
-    return (
-      <main className="min-h-screen bg-background px-4 py-8 sm:px-6 md:py-12">
-        <div className="mx-auto w-full max-w-3xl p-6 text-sm text-muted-foreground">Loading settings...</div>
-      </main>
-    )
+    return <SettingsSkeleton />
   }
 
   return (
