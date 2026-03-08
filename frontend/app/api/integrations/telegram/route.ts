@@ -27,14 +27,64 @@ type ConnectResponse = {
   message: string
 }
 
+function isMissingPendingActionColumn(error: unknown): boolean {
+  return error instanceof Error && error.message.toLowerCase().includes("pending_action")
+}
+
 async function getSubscription(accessToken: string, userId: string): Promise<TelegramSubscriptionRow | null> {
-  const rows = await restRequest<TelegramSubscriptionRow[]>(
-    `/telegram_subscriptions?user_id=eq.${encodeURIComponent(
-      userId,
-    )}&select=user_id,chat_id,alerts_enabled,keyword_filter,platform_filter,pending_action,link_token,link_token_expires_at,connected_at,paused_at,last_alert_sent_at,last_delivered_match_at,last_error,last_error_at&limit=1`,
-    accessToken,
-  )
-  return rows[0] ?? null
+  const basePath = `/telegram_subscriptions?user_id=eq.${encodeURIComponent(
+    userId,
+  )}&select=user_id,chat_id,alerts_enabled,keyword_filter,platform_filter,link_token,link_token_expires_at,connected_at,paused_at,last_alert_sent_at,last_delivered_match_at,last_error,last_error_at&limit=1`
+
+  try {
+    const rows = await restRequest<TelegramSubscriptionRow[]>(
+      basePath.replace("platform_filter,", "platform_filter,pending_action,"),
+      accessToken,
+    )
+    return rows[0] ?? null
+  } catch (error) {
+    if (!isMissingPendingActionColumn(error)) {
+      throw error
+    }
+    const rows = await restRequest<Array<Omit<TelegramSubscriptionRow, "pending_action">>>(
+      basePath,
+      accessToken,
+    )
+    return rows[0] ? { ...rows[0], pending_action: null } : null
+  }
+}
+
+async function patchSubscription(
+  accessToken: string,
+  userId: string,
+  patch: Record<string, unknown>,
+): Promise<TelegramSubscriptionRow | null> {
+  const path = `/telegram_subscriptions?user_id=eq.${encodeURIComponent(userId)}`
+  try {
+    const rows = await restRequest<TelegramSubscriptionRow[]>(
+      path,
+      accessToken,
+      {
+        method: "PATCH",
+        body: JSON.stringify(patch),
+      },
+    )
+    return rows[0] ?? null
+  } catch (error) {
+    if (!isMissingPendingActionColumn(error)) {
+      throw error
+    }
+    const { pending_action: _ignored, ...fallbackPatch } = patch
+    const rows = await restRequest<Array<Omit<TelegramSubscriptionRow, "pending_action">>>(
+      path,
+      accessToken,
+      {
+        method: "PATCH",
+        body: JSON.stringify(fallbackPatch),
+      },
+    )
+    return rows[0] ? { ...rows[0], pending_action: null } : null
+  }
 }
 
 function toStatusPayload(subscription: TelegramSubscriptionRow | null, configured: boolean) {
@@ -86,22 +136,15 @@ export async function POST(request: NextRequest) {
 
     let subscription: TelegramSubscriptionRow
     if (existing) {
-      const rows = await restRequest<TelegramSubscriptionRow[]>(
-        `/telegram_subscriptions?user_id=eq.${encodeURIComponent(auth.userId)}`,
-        auth.accessToken,
-        {
-          method: "PATCH",
-          body: JSON.stringify({
-            link_token: linkToken,
-            link_token_expires_at: linkExpiresAt,
-            pending_action: null,
-            last_error: null,
-            last_error_at: null,
-          }),
-        },
-      )
-      subscription = rows[0] ?? {
+      subscription = (await patchSubscription(auth.accessToken, auth.userId, {
+        link_token: linkToken,
+        link_token_expires_at: linkExpiresAt,
+        pending_action: null,
+        last_error: null,
+        last_error_at: null,
+      })) ?? {
         ...existing,
+        pending_action: null,
         link_token: linkToken,
         link_token_expires_at: linkExpiresAt,
       }
@@ -150,28 +193,20 @@ export async function DELETE(request: NextRequest) {
       throw tooManyRequests()
     }
 
-    const rows = await restRequest<TelegramSubscriptionRow[]>(
-      `/telegram_subscriptions?user_id=eq.${encodeURIComponent(auth.userId)}`,
-      auth.accessToken,
-      {
-        method: "PATCH",
-        body: JSON.stringify({
-          chat_id: null,
-          alerts_enabled: false,
-          connected_at: null,
-          paused_at: null,
-          pending_action: null,
-          last_alert_sent_at: null,
-          last_delivered_match_at: null,
-          last_error: null,
-          last_error_at: null,
-          link_token: crypto.randomUUID(),
-          link_token_expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-        }),
-      },
-    )
-
-    const subscription = rows[0] ?? null
+    const subscription =
+      (await patchSubscription(auth.accessToken, auth.userId, {
+        chat_id: null,
+        alerts_enabled: false,
+        connected_at: null,
+        paused_at: null,
+        pending_action: null,
+        last_alert_sent_at: null,
+        last_delivered_match_at: null,
+        last_error: null,
+        last_error_at: null,
+        link_token: crypto.randomUUID(),
+        link_token_expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      })) ?? null
     const response = NextResponse.json({
       ...toStatusPayload(subscription, telegramConfigured()),
       message: "Telegram disconnected.",
