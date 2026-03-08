@@ -180,6 +180,7 @@ create table if not exists public.telegram_subscriptions (
   alerts_enabled boolean not null default true,
   keyword_filter text,
   platform_filter public.source_name,
+  pending_action text,
   link_token uuid not null default gen_random_uuid(),
   link_token_expires_at timestamptz not null default (now() + interval '1 day'),
   connected_at timestamptz,
@@ -192,6 +193,9 @@ create table if not exists public.telegram_subscriptions (
   updated_at timestamptz not null default now(),
   constraint telegram_keyword_filter_len check (
     keyword_filter is null or char_length(btrim(keyword_filter)) between 2 and 120
+  ),
+  constraint telegram_pending_action_check check (
+    pending_action is null or pending_action in ('keyword_query', 'platform_query', 'set_keyword', 'set_platform')
   )
 );
 

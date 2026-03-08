@@ -628,14 +628,6 @@ export default function SettingsPage() {
                     can request more up to 100.
                   </p>
 
-                  {telegramKeywordFilter || telegramPlatformFilter ? (
-                    <p className="mt-3 text-xs text-muted-foreground">
-                      Saved bot filters: keyword{" "}
-                      <span className="font-medium text-foreground">{telegramKeywordFilter ?? "all"}</span> · platform{" "}
-                      <span className="font-medium text-foreground">{telegramPlatformFilter ?? "all"}</span>
-                    </p>
-                  ) : null}
-
                   <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                     <button
                       onClick={() => void connectTelegram()}
@@ -688,8 +680,10 @@ export default function SettingsPage() {
 
                   <div className="mt-4 rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
                     <p className="font-medium text-foreground">Bot commands</p>
-                    <p className="mt-2">/latest, /latest 50, /keyword chatgpt 20, /platform hackernews 20</p>
-                    <p className="mt-1">/setkeyword all, /setplatform devto, /filters, /pause, /resume</p>
+                    <p className="mt-2">/latest, /latest 50, /keyword, /platform</p>
+                    <p className="mt-1">
+                      {telegramAlertsEnabled && !telegramPaused ? "/pause, /stop" : "/resume, /stop"}
+                    </p>
                   </div>
                 </>
               ) : (

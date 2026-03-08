@@ -2,6 +2,7 @@ import { AppError, badRequest } from "@/lib/server/errors"
 import { normalizeInput } from "@/lib/server/validation"
 
 export type TelegramPlatform = "hackernews" | "devto" | "github_discussions"
+export type TelegramPendingAction = "keyword_query" | "platform_query" | "set_keyword" | "set_platform"
 
 export type TelegramSubscriptionRow = {
   user_id: string
@@ -9,6 +10,7 @@ export type TelegramSubscriptionRow = {
   alerts_enabled: boolean
   keyword_filter: string | null
   platform_filter: TelegramPlatform | null
+  pending_action: TelegramPendingAction | null
   link_token: string
   link_token_expires_at: string
   connected_at: string | null

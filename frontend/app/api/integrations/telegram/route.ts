@@ -31,7 +31,7 @@ async function getSubscription(accessToken: string, userId: string): Promise<Tel
   const rows = await restRequest<TelegramSubscriptionRow[]>(
     `/telegram_subscriptions?user_id=eq.${encodeURIComponent(
       userId,
-    )}&select=user_id,chat_id,alerts_enabled,keyword_filter,platform_filter,link_token,link_token_expires_at,connected_at,paused_at,last_alert_sent_at,last_delivered_match_at,last_error,last_error_at&limit=1`,
+    )}&select=user_id,chat_id,alerts_enabled,keyword_filter,platform_filter,pending_action,link_token,link_token_expires_at,connected_at,paused_at,last_alert_sent_at,last_delivered_match_at,last_error,last_error_at&limit=1`,
     accessToken,
   )
   return rows[0] ?? null
@@ -94,6 +94,7 @@ export async function POST(request: NextRequest) {
           body: JSON.stringify({
             link_token: linkToken,
             link_token_expires_at: linkExpiresAt,
+            pending_action: null,
             last_error: null,
             last_error_at: null,
           }),
@@ -159,6 +160,7 @@ export async function DELETE(request: NextRequest) {
           alerts_enabled: false,
           connected_at: null,
           paused_at: null,
+          pending_action: null,
           last_alert_sent_at: null,
           last_delivered_match_at: null,
           last_error: null,

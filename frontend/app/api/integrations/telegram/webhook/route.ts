@@ -8,6 +8,7 @@ import {
   parseTelegramLimit,
   parseTelegramPlatform,
   sendTelegramMessage,
+  type TelegramPendingAction,
   type TelegramPlatform,
   type TelegramSubscriptionRow,
 } from "@/lib/server/telegram"
@@ -60,7 +61,7 @@ async function getSubscriptionByChatId(chatId: number): Promise<TelegramSubscrip
   const rows = await serviceRestRequest<TelegramSubscriptionRow[]>(
     `/telegram_subscriptions?chat_id=eq.${encodeURIComponent(
       String(chatId),
-    )}&select=user_id,chat_id,alerts_enabled,keyword_filter,platform_filter,link_token,link_token_expires_at,connected_at,paused_at,last_alert_sent_at,last_delivered_match_at,last_error,last_error_at&limit=1`,
+    )}&select=user_id,chat_id,alerts_enabled,keyword_filter,platform_filter,pending_action,link_token,link_token_expires_at,connected_at,paused_at,last_alert_sent_at,last_delivered_match_at,last_error,last_error_at&limit=1`,
   )
   return rows[0] ?? null
 }
@@ -69,7 +70,7 @@ async function getSubscriptionByLinkToken(token: string): Promise<TelegramSubscr
   const rows = await serviceRestRequest<TelegramSubscriptionRow[]>(
     `/telegram_subscriptions?link_token=eq.${encodeURIComponent(
       token,
-    )}&select=user_id,chat_id,alerts_enabled,keyword_filter,platform_filter,link_token,link_token_expires_at,connected_at,paused_at,last_alert_sent_at,last_delivered_match_at,last_error,last_error_at&limit=1`,
+    )}&select=user_id,chat_id,alerts_enabled,keyword_filter,platform_filter,pending_action,link_token,link_token_expires_at,connected_at,paused_at,last_alert_sent_at,last_delivered_match_at,last_error,last_error_at&limit=1`,
   )
   return rows[0] ?? null
 }
@@ -154,27 +155,89 @@ function normalizeKeywordAgainstTracked(input: string, trackedKeywords: string[]
 }
 
 function buildHelpText(subscription: TelegramSubscriptionRow | null) {
-  const keywordFilter = subscription?.keyword_filter ?? "all"
-  const platformFilter = subscription?.platform_filter ? platformLabel(subscription.platform_filter) : "all"
   const alertsState = subscription?.alerts_enabled === false ? "paused" : "active"
+  const alertCommand = subscription?.alerts_enabled === false ? "/resume - resume Telegram alerts" : "/pause - stop Telegram alerts"
 
   return [
     "Signalze Telegram commands",
     "",
-    `/latest - show the latest 20 mentions using your saved filters`,
+    `/latest - show the latest 20 mentions`,
     `/latest 50 - show more (max 100)`,
-    `/keyword <tracked keyword> [count] - one-off keyword query`,
-    `/platform <hackernews|devto|github_discussions> [count] - one-off platform query`,
-    `/setkeyword <tracked keyword|all> - set your saved keyword filter`,
-    `/setplatform <hackernews|devto|github_discussions|all> - set your saved platform filter`,
-    `/filters - show your current saved filters`,
-    `/pause - stop Telegram alerts`,
-    `/resume - resume Telegram alerts`,
+    `/keyword - choose a keyword and see mentions`,
+    `/platform - choose a platform and see mentions`,
+    alertCommand,
     `/stop - alias for /pause`,
     "",
-    `Saved filters: keyword=${keywordFilter}, platform=${platformFilter}`,
     `Alerts: ${alertsState}`,
   ].join("\n")
+}
+
+async function clearPendingAction(userId: string) {
+  await updateSubscription(userId, { pending_action: null })
+}
+
+async function setPendingAction(userId: string, action: TelegramPendingAction) {
+  await updateSubscription(userId, { pending_action: action })
+}
+
+async function handlePendingAction(
+  chatId: number,
+  subscription: TelegramSubscriptionRow,
+  trackedKeywords: string[],
+  rawText: string,
+): Promise<boolean> {
+  const pendingAction = subscription.pending_action
+  if (!pendingAction) {
+    return false
+  }
+
+  if (!rawText.trim()) {
+    await clearPendingAction(subscription.user_id)
+    await reply(chatId, "That reply was empty. Start again with /keyword or /platform.")
+    return true
+  }
+
+  if (pendingAction === "keyword_query") {
+    const { value, limit } = splitValueAndLimit(rawText)
+    const keyword = normalizeKeywordAgainstTracked(value, trackedKeywords)
+    const rows = await fetchTelegramMentions(subscription.user_id, {
+      limit,
+      keyword,
+      platform: subscription.platform_filter,
+    })
+    await clearPendingAction(subscription.user_id)
+    await reply(
+      chatId,
+      buildMentionsMessage(rows, {
+        requestedLimit: limit,
+        keyword,
+        platform: subscription.platform_filter,
+      }),
+    )
+    return true
+  }
+
+  if (pendingAction === "platform_query") {
+    const { value, limit } = splitValueAndLimit(rawText)
+    const platform = parseTelegramPlatform(value)
+    const rows = await fetchTelegramMentions(subscription.user_id, {
+      limit,
+      keyword: subscription.keyword_filter,
+      platform,
+    })
+    await clearPendingAction(subscription.user_id)
+    await reply(
+      chatId,
+      buildMentionsMessage(rows, {
+        requestedLimit: limit,
+        keyword: subscription.keyword_filter,
+        platform,
+      }),
+    )
+    return true
+  }
+
+  return false
 }
 
 function buildMentionsMessage(
@@ -295,6 +358,7 @@ export async function POST(request: NextRequest) {
         connected_at: new Date().toISOString(),
         alerts_enabled: true,
         paused_at: null,
+        pending_action: null,
         last_error: null,
         last_error_at: null,
         link_token: crypto.randomUUID(),
@@ -328,8 +392,8 @@ export async function POST(request: NextRequest) {
 
     const trackedKeywords = await listActiveKeywords(subscription.user_id)
     try {
-      if (command === "/help") {
-        await reply(chatId, buildHelpText(subscription))
+      if (!command.startsWith("/") && subscription.pending_action) {
+        await handlePendingAction(chatId, subscription, trackedKeywords, text)
         return NextResponse.json({ ok: true })
       }
 
@@ -337,6 +401,7 @@ export async function POST(request: NextRequest) {
         await updateSubscription(subscription.user_id, {
           alerts_enabled: false,
           paused_at: new Date().toISOString(),
+          pending_action: null,
         })
         await reply(chatId, "Telegram alerts are paused. You can still use /latest, /keyword, and /platform anytime.")
         return NextResponse.json({ ok: true })
@@ -346,104 +411,83 @@ export async function POST(request: NextRequest) {
         await updateSubscription(subscription.user_id, {
           alerts_enabled: true,
           paused_at: null,
+          pending_action: null,
         })
         await reply(chatId, "Telegram alerts are active again.")
         return NextResponse.json({ ok: true })
       }
 
       if (command === "/filters") {
-        await reply(chatId, buildHelpText(subscription))
-        return NextResponse.json({ ok: true })
-      }
-
-      if (command === "/setkeyword") {
-        const value = rawArgs.trim()
-        if (!value) {
-          await reply(chatId, "Use /setkeyword <tracked keyword|all>.")
-          return NextResponse.json({ ok: true })
-        }
-
-        if (value.toLowerCase() === "all") {
-          await updateSubscription(subscription.user_id, { keyword_filter: null })
-          await reply(chatId, "Saved keyword filter cleared.")
-          return NextResponse.json({ ok: true })
-        }
-
-        const keyword = normalizeKeywordAgainstTracked(value, trackedKeywords)
-        await updateSubscription(subscription.user_id, { keyword_filter: keyword })
-        await reply(chatId, `Saved keyword filter set to ${keyword}.`)
-        return NextResponse.json({ ok: true })
-      }
-
-      if (command === "/setplatform") {
-        const value = rawArgs.trim()
-        if (!value) {
-          await reply(chatId, "Use /setplatform <hackernews|devto|github_discussions|all>.")
-          return NextResponse.json({ ok: true })
-        }
-
-        if (value.toLowerCase() === "all") {
-          await updateSubscription(subscription.user_id, { platform_filter: null })
-          await reply(chatId, "Saved platform filter cleared.")
-          return NextResponse.json({ ok: true })
-        }
-
-        const platform = parseTelegramPlatform(value)
-        await updateSubscription(subscription.user_id, { platform_filter: platform })
-        await reply(chatId, `Saved platform filter set to ${platformLabel(platform)}.`)
+        await clearPendingAction(subscription.user_id)
+        await reply(chatId, "Use /keyword or /platform to browse mentions, or /latest for the newest results.")
         return NextResponse.json({ ok: true })
       }
 
       if (command === "/latest") {
+        await clearPendingAction(subscription.user_id)
         const limit = parseTelegramLimit(args[0] ?? null)
         const rows = await fetchTelegramMentions(subscription.user_id, {
           limit,
-          keyword: subscription.keyword_filter,
-          platform: subscription.platform_filter,
+          keyword: null,
+          platform: null,
         })
         await reply(
           chatId,
           buildMentionsMessage(rows, {
             requestedLimit: limit,
-            keyword: subscription.keyword_filter,
-            platform: subscription.platform_filter,
+            keyword: null,
+            platform: null,
           }),
         )
         return NextResponse.json({ ok: true })
       }
 
       if (command === "/keyword") {
+        if (!rawArgs.trim()) {
+          await setPendingAction(subscription.user_id, "keyword_query")
+          await reply(chatId, `Which keyword do you want to search?\nAvailable: ${trackedKeywords.join(", ") || "none"}`)
+          return NextResponse.json({ ok: true })
+        }
+
         const { value, limit } = splitValueAndLimit(rawArgs)
         const keyword = normalizeKeywordAgainstTracked(value, trackedKeywords)
         const rows = await fetchTelegramMentions(subscription.user_id, {
           limit,
           keyword,
-          platform: subscription.platform_filter,
+          platform: null,
         })
+        await clearPendingAction(subscription.user_id)
         await reply(
           chatId,
           buildMentionsMessage(rows, {
             requestedLimit: limit,
             keyword,
-            platform: subscription.platform_filter,
+            platform: null,
           }),
         )
         return NextResponse.json({ ok: true })
       }
 
       if (command === "/platform") {
+        if (!rawArgs.trim()) {
+          await setPendingAction(subscription.user_id, "platform_query")
+          await reply(chatId, "Which platform do you want to search?\nAvailable: hackernews, devto, or github_discussions.")
+          return NextResponse.json({ ok: true })
+        }
+
         const { value, limit } = splitValueAndLimit(rawArgs)
         const platform = parseTelegramPlatform(value)
         const rows = await fetchTelegramMentions(subscription.user_id, {
           limit,
-          keyword: subscription.keyword_filter,
+          keyword: null,
           platform,
         })
+        await clearPendingAction(subscription.user_id)
         await reply(
           chatId,
           buildMentionsMessage(rows, {
             requestedLimit: limit,
-            keyword: subscription.keyword_filter,
+            keyword: null,
             platform,
           }),
         )
@@ -453,7 +497,7 @@ export async function POST(request: NextRequest) {
       const message =
         commandError instanceof Error && commandError.message.trim()
           ? commandError.message
-          : "I couldn’t process that command. Use /help to see the supported commands."
+          : "I couldn’t process that command."
       await reply(chatId, message)
       return NextResponse.json({ ok: true })
     }
