@@ -223,12 +223,12 @@ function equalWeightSelectMentionsForPlatform(
     let chosenIndex = -1
     let chosenCoverage = Number.POSITIVE_INFINITY
     let chosenPublishedAt = Number.NEGATIVE_INFINITY
+    let chosenKeywordNextPointer = -1
 
     for (const keyword of availableKeywordKeys) {
       const candidateIndexes = keywordCandidates.get(keyword) ?? []
       const pointer = candidatePointers.get(keyword) ?? 0
       const { mentionIndex, nextPointer } = nextUnseenCandidateIndex(candidateIndexes, selectedIndexes, pointer)
-      candidatePointers.set(keyword, nextPointer)
 
       if (mentionIndex === null) {
         continue
@@ -247,6 +247,7 @@ function equalWeightSelectMentionsForPlatform(
         chosenIndex = mentionIndex
         chosenCoverage = coverage
         chosenPublishedAt = publishedAt
+        chosenKeywordNextPointer = nextPointer
       }
     }
 
@@ -254,6 +255,7 @@ function equalWeightSelectMentionsForPlatform(
       break
     }
 
+    candidatePointers.set(chosenKeyword, chosenKeywordNextPointer)
     selectedIndexes.add(chosenIndex)
     const mention = mentions[chosenIndex]
     selected.push(mention)
