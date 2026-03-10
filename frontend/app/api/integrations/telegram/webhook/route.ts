@@ -114,7 +114,8 @@ async function updateSubscription(userId: string, patch: Record<string, unknown>
     if (!isMissingPendingActionColumn(error)) {
       throw error
     }
-    const { pending_action: _ignored, ...fallbackPatch } = patch
+    const fallbackPatch = { ...patch }
+    delete fallbackPatch.pending_action
     const rows = await serviceRestRequest<Array<Omit<TelegramSubscriptionRow, "pending_action">>>(
       path,
       {

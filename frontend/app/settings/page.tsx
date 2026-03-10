@@ -105,8 +105,6 @@ export default function SettingsPage() {
   const [telegramConnected, setTelegramConnected] = useState(false)
   const [telegramAlertsEnabled, setTelegramAlertsEnabled] = useState(true)
   const [telegramPaused, setTelegramPaused] = useState(false)
-  const [telegramKeywordFilter, setTelegramKeywordFilter] = useState<string | null>(null)
-  const [telegramPlatformFilter, setTelegramPlatformFilter] = useState<string | null>(null)
   const [telegramBotUsername, setTelegramBotUsername] = useState<string | null>(null)
   const [telegramBotLink, setTelegramBotLink] = useState<string | null>(null)
   const [telegramStartCode, setTelegramStartCode] = useState<string | null>(null)
@@ -139,8 +137,6 @@ export default function SettingsPage() {
         setTelegramConnected(Boolean(payload.telegram?.connected))
         setTelegramAlertsEnabled(payload.telegram?.alertsEnabled ?? true)
         setTelegramPaused(Boolean(payload.telegram?.paused))
-        setTelegramKeywordFilter(payload.telegram?.keywordFilter ?? null)
-        setTelegramPlatformFilter(payload.telegram?.platformFilter ?? null)
       } catch (bootstrapError) {
         const message = bootstrapError instanceof Error ? bootstrapError.message : "Failed to load settings"
         if (message.toLowerCase().includes("please log in")) {
@@ -339,8 +335,6 @@ export default function SettingsPage() {
       setTelegramConnected(Boolean(payload.connected))
       setTelegramAlertsEnabled(payload.alertsEnabled ?? true)
       setTelegramPaused(Boolean(payload.paused))
-      setTelegramKeywordFilter(payload.keywordFilter ?? null)
-      setTelegramPlatformFilter(payload.platformFilter ?? null)
       setTelegramBotUsername(payload.botUsername ?? null)
       setTelegramBotLink(payload.botLink ?? null)
       setTelegramStartCode(payload.startCode ?? null)
@@ -396,8 +390,6 @@ export default function SettingsPage() {
       setTelegramConnected(Boolean(payload.connected))
       setTelegramAlertsEnabled(payload.alertsEnabled ?? true)
       setTelegramPaused(Boolean(payload.paused))
-      setTelegramKeywordFilter(payload.keywordFilter ?? null)
-      setTelegramPlatformFilter(payload.platformFilter ?? null)
       setTelegramStartCode(null)
       setTelegramLinkExpiresAt(null)
       setTelegramFeedback(payload.message ?? "Telegram disconnected.")

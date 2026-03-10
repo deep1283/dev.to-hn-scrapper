@@ -74,7 +74,8 @@ async function patchSubscription(
     if (!isMissingPendingActionColumn(error)) {
       throw error
     }
-    const { pending_action: _ignored, ...fallbackPatch } = patch
+    const fallbackPatch = { ...patch }
+    delete fallbackPatch.pending_action
     const rows = await restRequest<Array<Omit<TelegramSubscriptionRow, "pending_action">>>(
       path,
       accessToken,
