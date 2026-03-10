@@ -357,6 +357,23 @@ async function reply(chatId: number, text: string) {
   await sendTelegramMessage(chatId, text)
 }
 
+async function releaseExistingChatLink(chatId: number, nextUserId: string) {
+  const existingChatLink = await getSubscriptionByChatId(chatId)
+  if (!existingChatLink || existingChatLink.user_id === nextUserId) {
+    return
+  }
+
+  await updateSubscription(existingChatLink.user_id, {
+    chat_id: null,
+    alerts_enabled: false,
+    connected_at: null,
+    paused_at: null,
+    pending_action: null,
+    last_error: "Telegram chat moved to another Signalze account.",
+    last_error_at: new Date().toISOString(),
+  })
+}
+
 async function restartConnection(chatId: number, token: string) {
   const subscription = await getSubscriptionByLinkToken(token)
   if (!subscription) {
@@ -371,6 +388,8 @@ async function restartConnection(chatId: number, token: string) {
   }
 
   try {
+    await releaseExistingChatLink(chatId, subscription.user_id)
+
     const linkedSubscription = await updateSubscription(subscription.user_id, {
       chat_id: chatId,
       connected_at: new Date().toISOString(),
