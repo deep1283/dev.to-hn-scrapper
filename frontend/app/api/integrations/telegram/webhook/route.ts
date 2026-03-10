@@ -325,6 +325,12 @@ function parseCommand(text: string) {
   }
 }
 
+function extractStartToken(text: string): string | null {
+  const match = text.match(/(?:^|\s)\/start(?:@\w+)?\s+([^\s]+)/i)
+  const token = match?.[1]?.trim()
+  return token ? token : null
+}
+
 function splitValueAndLimit(raw: string): { value: string; limit: number } {
   const trimmed = raw.trim()
   if (!trimmed) {
@@ -348,6 +354,40 @@ function splitValueAndLimit(raw: string): { value: string; limit: number } {
 
 async function reply(chatId: number, text: string) {
   await sendTelegramMessage(chatId, text)
+}
+
+async function restartConnection(chatId: number, token: string) {
+  const subscription = await getSubscriptionByLinkToken(token)
+  if (!subscription) {
+    await reply(chatId, "That start code is invalid. Generate a fresh code from Signalze settings and try again.")
+    return
+  }
+
+  const expiresAt = new Date(subscription.link_token_expires_at).getTime()
+  if (!Number.isFinite(expiresAt) || expiresAt < Date.now()) {
+    await reply(chatId, "That start code has expired. Generate a new one from Signalze settings.")
+    return
+  }
+
+  try {
+    const linkedSubscription = await updateSubscription(subscription.user_id, {
+      chat_id: chatId,
+      connected_at: new Date().toISOString(),
+      alerts_enabled: true,
+      paused_at: null,
+      pending_action: null,
+      last_error: null,
+      last_error_at: null,
+      link_token: crypto.randomUUID(),
+      link_token_expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    })
+    await reply(chatId, `Telegram is connected.\n\n${buildHelpText(linkedSubscription ?? subscription)}`)
+  } catch {
+    await reply(
+      chatId,
+      "I couldn’t complete that connection yet. Generate a fresh Telegram code in Signalze settings, then paste the new /start code here and I’ll try again.",
+    )
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -375,45 +415,19 @@ export async function POST(request: NextRequest) {
     }
 
     const { command, rawArgs, args } = parseCommand(text)
+    const startToken = command === "/start" ? args[0]?.trim() ?? null : extractStartToken(text)
+
+    if (startToken) {
+      await restartConnection(chatId, startToken)
+      return NextResponse.json({ ok: true })
+    }
 
     if (command === "/start") {
-      const token = args[0]?.trim()
-      if (!token) {
+      if (!rawArgs.trim()) {
         await reply(chatId, "Open Signalze settings, tap connect, and send the /start code shown there.")
         return NextResponse.json({ ok: true })
       }
-
-      const subscription = await getSubscriptionByLinkToken(token)
-      if (!subscription) {
-        await reply(chatId, "That start code is invalid. Generate a fresh code from Signalze settings and try again.")
-        return NextResponse.json({ ok: true })
-      }
-
-      const expiresAt = new Date(subscription.link_token_expires_at).getTime()
-      if (!Number.isFinite(expiresAt) || expiresAt < Date.now()) {
-        await reply(chatId, "That start code has expired. Generate a new one from Signalze settings.")
-        return NextResponse.json({ ok: true })
-      }
-
-      try {
-        const linkedSubscription = await updateSubscription(subscription.user_id, {
-          chat_id: chatId,
-          connected_at: new Date().toISOString(),
-          alerts_enabled: true,
-          paused_at: null,
-          pending_action: null,
-          last_error: null,
-          last_error_at: null,
-          link_token: crypto.randomUUID(),
-          link_token_expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-        })
-        await reply(chatId, `Telegram is connected.\n\n${buildHelpText(linkedSubscription ?? subscription)}`)
-      } catch {
-        await reply(
-          chatId,
-          "I couldn’t complete that connection yet. Generate a fresh Telegram code in Signalze settings, then paste the new /start code here and I’ll try again.",
-        )
-      }
+      await reply(chatId, "Paste the full /start code from Signalze settings and I’ll retry the connection.")
       return NextResponse.json({ ok: true })
     }
 
