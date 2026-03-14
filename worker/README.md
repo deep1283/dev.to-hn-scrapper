@@ -20,7 +20,7 @@ Python is a good fit for this workload because polling, normalization, retries, 
 
 ## Runtime model
 - Deploy this folder as a Railway service.
-- Run it as a **Cron job every 10-15 minutes**.
+- Run it as a **Cron job every 30 minutes**.
 - Command: `python main.py`
 - Effective polling cadence is plan-based by default:
   - `starter_9` ($5): every 5 hours
@@ -40,22 +40,9 @@ Signalze can run the worker via GitHub Actions `workflow_dispatch`, with cron-jo
 2. Create cron-jobs.org job:
    - URL: `https://<your-domain>/api/cron/mentions?token=<CRON_MENTIONS_TOKEN>`
    - Method: `GET` (or `POST`)
-   - Schedule: every 15 minutes
+   - Schedule: every 30 minutes
 3. The endpoint dispatches GitHub workflow `mentions-worker.yml`.
 4. Keep `workflow_dispatch` enabled in GitHub workflow; built-in GitHub `schedule` is optional and can be disabled.
-
-## Render setup (ready in repo)
-- This repo includes [`/Users/deepmishra/vscode/signalze/render.yaml`](/Users/deepmishra/vscode/signalze/render.yaml) with a `starter` cron service:
-  - schedule: every 15 minutes (`*/15 * * * *`)
-  - root dir: `worker`
-  - command: `python main.py`
-- In Render:
-  1. New -> Blueprint -> select this repo.
-  2. Review the cron service `signalze-mentions-worker`.
-  3. Set secrets:
-     - `DATABASE_URL`
-     - `GITHUB_TOKEN`
-  4. Deploy.
 
 ## Free-tier-safe mode (recommended for MVP)
 Keep request volume conservative until you have paid customers.
@@ -74,7 +61,7 @@ Suggested env values:
 - `SOURCE_HN_INCREMENTAL_LOOKBACK_HOURS=24`
 - `SOURCE_DEVTO_INCREMENTAL_LOOKBACK_HOURS=24`
 - `SOURCE_GITHUB_DISCUSSIONS_INCREMENTAL_LOOKBACK_HOURS=24`
-- `POLL_INTERVAL_MINUTES=15` (worker execution cadence; plan intervals control per-keyword scheduling)
+- `POLL_INTERVAL_MINUTES=30` (worker execution cadence; plan intervals control per-keyword scheduling)
 - `MENTION_RETENTION_DAYS=7`
 - `INITIAL_BACKFILL_DAYS=7`
 - `SOURCE_REDDIT_ENABLED=false`
