@@ -88,6 +88,8 @@ def _make_settings(**overrides) -> Settings:
         "google_cse_id": None,
         "brave_api_key": None,
         "github_token": "ghp_test",
+        "telegram_bot_token": None,
+        "telegram_alert_cooldown_minutes": 180,
         "request_timeout_seconds": 20.0,
         "source_keys": source_keys,
         "source_enabled": source_enabled,
